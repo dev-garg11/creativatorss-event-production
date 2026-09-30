@@ -1,0 +1,2 @@
+import {Services,CTA} from '../../components/Sections'; import {PageHero} from '../../components/PageHero'; import {images} from '../../data/site'; import {serviceVideos} from '../../data/media';
+export default function ServicesPage(){return <main><PageHero eyebrow="WHAT WE DO" title={<>Ideas into<br/><em>impact.</em></>} image={images.stage} videoBackground videoSrc={serviceVideos.corporate} description="Creative direction, production and people-first execution for events that stay with you."/><Services/><CTA/></main>}
