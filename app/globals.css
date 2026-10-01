@@ -430,3 +430,43 @@ footer .footer-top .site-logo{margin-bottom:14px}
   }
 }
 
+/* Footer Clickable Address, Phone & Email Styling */
+.footer-address {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.footer-address-link {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: inherit;
+  transition: color 0.25s ease, transform 0.2s ease;
+  line-height: 1.45;
+}
+.footer-address-link:hover {
+  color: var(--gold) !important;
+  transform: translateX(2px);
+}
+.footer-phone-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.footer-click-link {
+  display: inline-block;
+  color: inherit;
+  transition: color 0.25s ease, transform 0.2s ease;
+  width: fit-content;
+}
+.footer-click-link:hover {
+  color: var(--gold) !important;
+  transform: translateX(2px);
+}
+.footer-email-wrap {
+  margin-top: 2px;
+}
+.footer-email-link {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}

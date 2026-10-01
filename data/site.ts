@@ -1,7 +1,11 @@
 export const site = {
   name: 'Creativatorss', fullName: 'Creativatorss Event & Production', tagline: 'Event & Production',
-  address: ['SCO No. 64-65, 3rd Floor', 'Sector 34-A, Chandigarh'], phone: '8626-000-002', alternatePhone: '7889201332',
-  whatsapp: '918626000002', instagram: '#', facebook: '#', youtube: '#', linkedin: '#', email: 'hello@creativatorss.com',
+  address: ['SCO No. 64-65, 3rd Floor', 'Sector 34-A, Chandigarh'],
+  addressMapUrl: 'https://maps.google.com/?q=SCO+No.+64-65,+3rd+Floor,+Sector+34-A,+Chandigarh',
+  phone: '8626-000-002', alternatePhone: '7889201332', testPhone: '8837858438',
+  whatsapp: '918626000002', testWhatsapp: '918837858438',
+  instagram: '#', facebook: '#', youtube: '#', linkedin: '#',
+  email: 'devgarg752@gmail.com',
   stats: [{ value: '500+', label: 'Events & Experiences' }, { value: '100+', label: 'Brand & Corporate Projects' }, { value: '25+', label: 'Cities' }, { value: '10+', label: 'Years of Experience' }]
 };
 
