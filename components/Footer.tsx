@@ -16,7 +16,9 @@ export function Footer() {
       <div className="footer-top container">
         <div>
           <Logo variant={darkFooter ? 'light' : 'dark'} height={62} />
-          <p className="footer-copy">We create considered events, bold productions and experiences that people remember.</p>
+          <p className="footer-copy">
+            We create considered events, bold productions and experiences that people remember.
+          </p>
           <div className="socials">
             <a href={site.instagram} aria-label="Instagram"><Instagram /></a>
             <a href={site.facebook} aria-label="Facebook"><Facebook /></a>
@@ -62,7 +64,7 @@ export function Footer() {
               <span>{site.address[1]}</span>
             </a>
 
-            {/* Clickable Phone Numbers (Including Testing Number) */}
+            {/* Clickable Official Phone Numbers */}
             <div className="footer-phone-group">
               <a href={`tel:${site.phone.replace(/[^0-9+]/g, '')}`} className="footer-click-link">
                 {site.phone}
@@ -70,12 +72,9 @@ export function Footer() {
               <a href={`tel:${site.alternatePhone.replace(/[^0-9+]/g, '')}`} className="footer-click-link">
                 {site.alternatePhone}
               </a>
-              <a href={`tel:${site.testPhone.replace(/[^0-9+]/g, '')}`} className="footer-click-link footer-test-phone">
-                {site.testPhone}
-              </a>
             </div>
 
-            {/* Clickable Email (Testing Gmail) */}
+            {/* Clickable Target Email */}
             <div className="footer-email-wrap">
               <a href={`mailto:${site.email}`} className="footer-click-link footer-email-link">
                 {site.email}

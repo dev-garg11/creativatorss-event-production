@@ -470,3 +470,46 @@ footer .footer-top .site-logo{margin-bottom:14px}
   font-weight: 500;
   letter-spacing: 0.02em;
 }
+
+/* Contact Page Success & Error Card */
+.enquiry-success-card {
+  background: #ffffff;
+  border: 1px solid rgba(201, 164, 92, 0.4);
+  border-radius: 12px;
+  padding: 42px 32px;
+  text-align: center;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.06);
+  animation: rise 0.5s ease both;
+}
+.enquiry-success-icon {
+  color: #16a34a;
+  margin: 0 auto 16px;
+}
+.enquiry-success-card h3 {
+  font-family: 'Playfair Display', serif;
+  font-size: 28px;
+  color: var(--navy);
+  margin: 0 0 12px;
+}
+.enquiry-success-card p {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.65;
+  max-width: 480px;
+  margin: 0 auto 28px;
+}
+.enquiry-success-actions {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.enquiry-error-banner {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  padding: 14px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 8px;
+}

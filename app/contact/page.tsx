@@ -1,2 +1,229 @@
-'use client'; import {FormEvent,useState} from 'react'; import {ArrowUpRight,Phone,Mail,MapPin} from 'lucide-react'; import {site} from '../../data/site'; import {pageMedia} from '../../data/media'; import Link from 'next/link'; import {PageHero} from '../../components/PageHero';
-export default function Contact(){const [sent,setSent]=useState(false),[busy,setBusy]=useState(false);async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();setBusy(true);const form=new FormData(e.currentTarget);const response=await fetch('/api/enquiries',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(form.entries()))});setBusy(false);if(response.ok){setSent(true);e.currentTarget.reset()}}return <main><PageHero eyebrow="START A CONVERSATION" title={<>Let's create<br/><em>something extraordinary.</em></>} image={pageMedia.contact.image} videoBackground videoSrc={pageMedia.contact.video} fallbackImages={[pageMedia.contact.image,'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1600&q=85']}/><section className="contact-grid"><div className="contact-info"><p className="eyebrow">CREATIVATORSS EVENT & PRODUCTION</p><h2 className="display">Tell us about<br/><em>your event.</em></h2><p className="muted">A few details are all we need to begin. Our team will get back to you shortly.</p><div className="contact-details"><strong><MapPin size={15}/> Find us</strong><a href={site.addressMapUrl} target="_blank" rel="noopener noreferrer" style={{color:'inherit',display:'flex',flexDirection:'column'}}>{site.address.map(a=><span key={a}>{a}</span>)}</a><strong><Phone size={15}/> Call us</strong><div style={{display:'flex',flexDirection:'column',gap:4}}><a href={`tel:${site.phone.replace(/[^0-9+]/g,'')}`} style={{color:'inherit'}}>{site.phone}</a><a href={`tel:${site.alternatePhone.replace(/[^0-9+]/g,'')}`} style={{color:'inherit'}}>{site.alternatePhone}</a><a href={`tel:${site.testPhone.replace(/[^0-9+]/g,'')}`} style={{color:'inherit'}}>{site.testPhone}</a></div><strong><Mail size={15}/> Email</strong><a href={`mailto:${site.email}`} style={{color:'inherit'}}>{site.email}</a></div></div><div>{sent&&<div className="success">Thank you. Your enquiry has been received. Our team will contact you shortly.</div>}<form onSubmit={submit} className="form-grid"><label>Full Name *<input required name="name" placeholder="Your name"/></label><label>Company<input name="company" placeholder="Company name"/></label><label>Phone *<input required name="phone" type="tel" placeholder="+91"/></label><label>Email *<input required name="email" type="email" placeholder="you@company.com"/></label><label>Event Type<select name="eventType" defaultValue=""><option value="" disabled>Select one</option><option>Corporate Event</option><option>Fashion Show</option><option>Brand Shoot</option><option>Wedding Planning</option><option>Other</option></select></label><label>Event Date<input name="eventDate" type="date"/></label><label>Event Location<input name="location" placeholder="City / venue"/></label><label>Expected Guests<input name="guests" placeholder="Approx. number"/></label><label>Budget<input name="budget" placeholder="Optional"/></label><label>Services Required<input name="services" placeholder="What can we help with?"/></label><label className="full">Message<textarea name="message" placeholder="Tell us a little about your vision..."/></label><div className="full"><p className="form-note">By submitting, you agree that our team may contact you about this enquiry.</p><button className="btn btn-dark" type="submit" disabled={busy}>{busy?'Sending...':'Send Enquiry'} <ArrowUpRight size={16}/></button><Link className="btn btn-gold" style={{marginLeft:10}} href={`https://wa.me/${site.whatsapp}`} target="_blank">WhatsApp us</Link></div></form></div></section></main>}
+'use client';
+
+import { FormEvent, useState } from 'react';
+import { ArrowUpRight, Phone, Mail, MapPin, CheckCircle2 } from 'lucide-react';
+import { site } from '../../data/site';
+import { pageMedia } from '../../data/media';
+import Link from 'next/link';
+import { PageHero } from '../../components/PageHero';
+
+export default function Contact() {
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setBusy(true);
+    setErrorMsg('');
+
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
+
+    try {
+      const response = await fetch('/api/enquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (response.ok && data.ok) {
+        setSent(true);
+        form.reset();
+      } else {
+        setErrorMsg(data.message || 'Something went wrong. Please try again or reach us via WhatsApp.');
+      }
+    } catch {
+      setErrorMsg('Network error. Please check your connection or contact us directly on WhatsApp.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main>
+      <PageHero
+        eyebrow="START A CONVERSATION"
+        title={
+          <>
+            Let's create<br />
+            <em>something extraordinary.</em>
+          </>
+        }
+        image={pageMedia.contact.image}
+        videoBackground
+        videoSrc={pageMedia.contact.video}
+        fallbackImages={[
+          pageMedia.contact.image,
+          'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1600&q=85'
+        ]}
+      />
+
+      <section className="contact-grid">
+        <div className="contact-info">
+          <p className="eyebrow">CREATIVATORSS EVENT & PRODUCTION</p>
+          <h2 className="display">
+            Tell us about<br />
+            <em>your event.</em>
+          </h2>
+          <p className="muted">
+            A few details are all we need to begin. Our team will get back to you shortly.
+          </p>
+
+          <div className="contact-details">
+            <strong><MapPin size={15} /> Find us</strong>
+            <a
+              href={site.addressMapUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="footer-link-hover"
+              style={{ color: 'inherit', display: 'flex', flexDirection: 'column' }}
+              title="Open location in Google Maps"
+            >
+              {site.address.map(a => (
+                <span key={a}>{a}</span>
+              ))}
+            </a>
+
+            <strong><Phone size={15} /> Call us</strong>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <a href={`tel:${site.phone.replace(/[^0-9+]/g, '')}`} style={{ color: 'inherit' }}>
+                {site.phone}
+              </a>
+              <a href={`tel:${site.alternatePhone.replace(/[^0-9+]/g, '')}`} style={{ color: 'inherit' }}>
+                {site.alternatePhone}
+              </a>
+            </div>
+
+            <strong><Mail size={15} /> Email</strong>
+            <a href={`mailto:${site.email}`} style={{ color: 'inherit' }}>
+              {site.email}
+            </a>
+          </div>
+        </div>
+
+        <div>
+          {sent ? (
+            <div className="enquiry-success-card">
+              <CheckCircle2 size={44} className="enquiry-success-icon" />
+              <h3>Enquiry Sent Successfully!</h3>
+              <p>
+                Thank you. Your event enquiry has been received and sent to our team (<strong>{site.email}</strong>).
+                We will review your requirements and get back to you shortly.
+              </p>
+              <div className="enquiry-success-actions">
+                <button
+                  type="button"
+                  className="btn btn-dark"
+                  onClick={() => setSent(false)}
+                >
+                  Send Another Enquiry
+                </button>
+                <Link
+                  className="btn btn-gold"
+                  href={`https://wa.me/${site.whatsapp}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  WhatsApp Us <ArrowUpRight size={15} />
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={submit} className="form-grid">
+              {errorMsg && (
+                <div className="full enquiry-error-banner">
+                  {errorMsg}
+                </div>
+              )}
+
+              <label>
+                Full Name *
+                <input required name="name" placeholder="Your name" />
+              </label>
+
+              <label>
+                Company
+                <input name="company" placeholder="Company name" />
+              </label>
+
+              <label>
+                Phone *
+                <input required name="phone" type="tel" placeholder="+91" />
+              </label>
+
+              <label>
+                Email *
+                <input required name="email" type="email" placeholder="you@company.com" />
+              </label>
+
+              <label>
+                Event Type
+                <select name="eventType" defaultValue="">
+                  <option value="" disabled>Select one</option>
+                  <option>Corporate Event</option>
+                  <option>Fashion Show</option>
+                  <option>Brand Shoot</option>
+                  <option>Wedding Planning</option>
+                  <option>Other</option>
+                </select>
+              </label>
+
+              <label>
+                Event Date
+                <input name="eventDate" type="date" />
+              </label>
+
+              <label>
+                Event Location
+                <input name="location" placeholder="City / venue" />
+              </label>
+
+              <label>
+                Expected Guests
+                <input name="guests" placeholder="Approx. number" />
+              </label>
+
+              <label>
+                Budget
+                <input name="budget" placeholder="Optional" />
+              </label>
+
+              <label>
+                Services Required
+                <input name="services" placeholder="What can we help with?" />
+              </label>
+
+              <label className="full">
+                Message
+                <textarea name="message" placeholder="Tell us a little about your vision..." />
+              </label>
+
+              <div className="full">
+                <p className="form-note">
+                  By submitting, you agree that our team may contact you about this enquiry.
+                </p>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <button className="btn btn-dark" type="submit" disabled={busy}>
+                    {busy ? 'Sending Enquiry...' : 'Send Enquiry'} <ArrowUpRight size={16} />
+                  </button>
+                  <Link
+                    className="btn btn-gold"
+                    href={`https://wa.me/${site.whatsapp}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    WhatsApp Us <ArrowUpRight size={15} />
+                  </Link>
+                </div>
+              </div>
+            </form>
+          )}
+        </div>
+      </section>
+    </main>
+  );
+}
