@@ -512,4 +512,60 @@ footer .footer-top .site-logo{margin-bottom:14px}
   border-radius: 6px;
   font-size: 13px;
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
+
+/* Contact Page Luxury Top Success Banner */
+.enquiry-success-banner {
+  background: #fdfbf7;
+  border: 1px solid var(--gold);
+  border-left: 5px solid var(--gold);
+  border-radius: 8px;
+  padding: 24px 26px;
+  margin-bottom: 28px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  animation: rise 0.4s ease both;
+}
+.enquiry-success-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.enquiry-success-head h4 {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+  color: var(--navy);
+  margin: 0 0 6px;
+}
+.enquiry-success-head p {
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+  margin: 0;
+}
+.enquiry-banner-close {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  margin-left: auto;
+  line-height: 1;
+  transition: color 0.2s ease;
+}
+.enquiry-banner-close:hover {
+  color: var(--navy);
+}
+.enquiry-success-cta-row {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(201, 164, 92, 0.35);
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+

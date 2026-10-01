@@ -1,16 +1,18 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
-import { ArrowUpRight, Phone, Mail, MapPin, CheckCircle2 } from 'lucide-react';
+import { FormEvent, useRef, useState } from 'react';
+import { ArrowUpRight, Phone, Mail, MapPin, CheckCircle2, AlertCircle } from 'lucide-react';
 import { site } from '../../data/site';
 import { pageMedia } from '../../data/media';
 import Link from 'next/link';
 import { PageHero } from '../../components/PageHero';
 
 export default function Contact() {
-  const [sent, setSent] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const formRef = useRef<HTMLFormElement>(null);
+  const successRef = useRef<HTMLDivElement>(null);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -31,8 +33,19 @@ export default function Contact() {
       const data = await response.json().catch(() => ({}));
 
       if (response.ok && data.ok) {
-        setSent(true);
+        // 1. Refresh form - completely clear all entries ("entry gayab")
         form.reset();
+        if (formRef.current) {
+          formRef.current.reset();
+        }
+
+        // 2. Show prominent success banner
+        setSuccess(true);
+
+        // 3. Smoothly scroll into view
+        setTimeout(() => {
+          successRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 80);
       } else {
         setErrorMsg(data.message || 'Something went wrong. Please try again or reach us via WhatsApp.');
       }
@@ -106,21 +119,129 @@ export default function Contact() {
         </div>
 
         <div>
-          {sent ? (
-            <div className="enquiry-success-card">
-              <CheckCircle2 size={44} className="enquiry-success-icon" />
-              <h3>Enquiry Sent Successfully!</h3>
-              <p>
-                Thank you. Your event enquiry has been received and sent to our team (<strong>{site.email}</strong>).
-                We will review your requirements and get back to you shortly.
-              </p>
-              <div className="enquiry-success-actions">
+          {/* Success Banner (Appears after submission, entries cleared) */}
+          {success && (
+            <div className="enquiry-success-banner" ref={successRef}>
+              <div className="enquiry-success-head">
+                <CheckCircle2 size={28} className="enquiry-success-icon" />
+                <div style={{ flex: '1 1 auto' }}>
+                  <h4>Enquiry Sent Successfully!</h4>
+                  <p>
+                    Thank you! Your event enquiry has been received and forwarded to our team (<strong>{site.email}</strong>).
+                    All entries have been cleared and the form is ready for a new submission.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSuccess(false)}
+                  className="enquiry-banner-close"
+                  aria-label="Close notification"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="enquiry-success-cta-row">
+                <Link
+                  className="btn btn-gold"
+                  style={{ padding: '10px 18px', fontSize: '11px' }}
+                  href={`https://wa.me/${site.whatsapp}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Chat on WhatsApp for Instant Response <ArrowUpRight size={14} />
+                </Link>
                 <button
                   type="button"
                   className="btn btn-dark"
-                  onClick={() => setSent(false)}
+                  style={{ padding: '10px 18px', fontSize: '11px' }}
+                  onClick={() => setSuccess(false)}
                 >
-                  Send Another Enquiry
+                  Dismiss Message
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Error Banner */}
+          {errorMsg && (
+            <div className="enquiry-error-banner">
+              <AlertCircle size={18} />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {/* The Contact Form */}
+          <form ref={formRef} onSubmit={submit} className="form-grid">
+            <label>
+              Full Name *
+              <input required name="name" placeholder="Your name" />
+            </label>
+
+            <label>
+              Company
+              <input name="company" placeholder="Company name" />
+            </label>
+
+            <label>
+              Phone *
+              <input required name="phone" type="tel" placeholder="+91" />
+            </label>
+
+            <label>
+              Email *
+              <input required name="email" type="email" placeholder="you@company.com" />
+            </label>
+
+            <label>
+              Event Type
+              <select name="eventType" defaultValue="">
+                <option value="" disabled>Select one</option>
+                <option>Corporate Event</option>
+                <option>Fashion Show</option>
+                <option>Brand Shoot</option>
+                <option>Wedding Planning</option>
+                <option>Other</option>
+              </select>
+            </label>
+
+            <label>
+              Event Date
+              <input name="eventDate" type="date" />
+            </label>
+
+            <label>
+              Event Location
+              <input name="location" placeholder="City / venue" />
+            </label>
+
+            <label>
+              Expected Guests
+              <input name="guests" placeholder="Approx. number" />
+            </label>
+
+            <label>
+              Budget
+              <input name="budget" placeholder="Optional" />
+            </label>
+
+            <label>
+              Services Required
+              <input name="services" placeholder="What can we help with?" />
+            </label>
+
+            <label className="full">
+              Message
+              <textarea name="message" placeholder="Tell us a little about your vision..." />
+            </label>
+
+            <div className="full">
+              <p className="form-note">
+                By submitting, you agree that our team may contact you about this enquiry.
+              </p>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                <button className="btn btn-dark" type="submit" disabled={busy}>
+                  {busy ? 'Sending Enquiry...' : 'Send Enquiry'} <ArrowUpRight size={16} />
                 </button>
                 <Link
                   className="btn btn-gold"
@@ -132,96 +253,7 @@ export default function Contact() {
                 </Link>
               </div>
             </div>
-          ) : (
-            <form onSubmit={submit} className="form-grid">
-              {errorMsg && (
-                <div className="full enquiry-error-banner">
-                  {errorMsg}
-                </div>
-              )}
-
-              <label>
-                Full Name *
-                <input required name="name" placeholder="Your name" />
-              </label>
-
-              <label>
-                Company
-                <input name="company" placeholder="Company name" />
-              </label>
-
-              <label>
-                Phone *
-                <input required name="phone" type="tel" placeholder="+91" />
-              </label>
-
-              <label>
-                Email *
-                <input required name="email" type="email" placeholder="you@company.com" />
-              </label>
-
-              <label>
-                Event Type
-                <select name="eventType" defaultValue="">
-                  <option value="" disabled>Select one</option>
-                  <option>Corporate Event</option>
-                  <option>Fashion Show</option>
-                  <option>Brand Shoot</option>
-                  <option>Wedding Planning</option>
-                  <option>Other</option>
-                </select>
-              </label>
-
-              <label>
-                Event Date
-                <input name="eventDate" type="date" />
-              </label>
-
-              <label>
-                Event Location
-                <input name="location" placeholder="City / venue" />
-              </label>
-
-              <label>
-                Expected Guests
-                <input name="guests" placeholder="Approx. number" />
-              </label>
-
-              <label>
-                Budget
-                <input name="budget" placeholder="Optional" />
-              </label>
-
-              <label>
-                Services Required
-                <input name="services" placeholder="What can we help with?" />
-              </label>
-
-              <label className="full">
-                Message
-                <textarea name="message" placeholder="Tell us a little about your vision..." />
-              </label>
-
-              <div className="full">
-                <p className="form-note">
-                  By submitting, you agree that our team may contact you about this enquiry.
-                </p>
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <button className="btn btn-dark" type="submit" disabled={busy}>
-                    {busy ? 'Sending Enquiry...' : 'Send Enquiry'} <ArrowUpRight size={16} />
-                  </button>
-                  <Link
-                    className="btn btn-gold"
-                    href={`https://wa.me/${site.whatsapp}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    WhatsApp Us <ArrowUpRight size={15} />
-                  </Link>
-                </div>
-              </div>
-            </form>
-          )}
+          </form>
         </div>
       </section>
     </main>
