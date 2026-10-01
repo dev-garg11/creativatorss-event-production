@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Menu, X, ArrowUpRight, ChevronDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { services } from '../data/services';
@@ -18,6 +19,7 @@ const navGroups: NavGroup[] = [
 ];
 
 export function Navbar() {
+  const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [mobileGroup, setMobileGroup] = useState('');
@@ -29,19 +31,65 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  useEffect(() => {
+    setOpen(false);
+    setMobileGroup('');
+  }, [pathname]);
+
   const close = () => { setOpen(false); setMobileGroup(''); };
 
   return <header className={`nav ${scrolled ? 'nav-scrolled' : ''}`}>
     <div className="nav-logo-wrap">
-      <Logo variant={scrolled ? 'dark' : 'light'} height={52} priority />
+      <Logo variant={scrolled ? 'dark' : 'light'} height={50} priority />
     </div>
-    <nav>{navGroups.map(g => <div className="nav-dropdown" key={g.name}><Link className="services-trigger" href={g.href}>{g.name}<ChevronDown size={14} /></Link><div className="dropdown-panel">{g.children?.map((item, i) => <Link href={item.href} key={item.name}><span>{g.name === 'Services' ? services[i]?.number : '→'}</span>{item.name}<ArrowUpRight size={13} /></Link>)}</div></div>)}</nav>
+    <nav>
+      <Link className={`services-trigger nav-home-trigger ${pathname === '/' ? 'active' : ''}`} href="/">
+        Home
+      </Link>
+      {navGroups.map(g => (
+        <div className="nav-dropdown" key={g.name}>
+          <Link className={`services-trigger ${pathname.startsWith(g.href) ? 'active' : ''}`} href={g.href}>
+            {g.name}<ChevronDown size={14} />
+          </Link>
+          <div className="dropdown-panel">
+            {g.children?.map((item, i) => (
+              <Link href={item.href} key={item.name}>
+                <span>{g.name === 'Services' ? services[i]?.number : '→'}</span>
+                {item.name}
+                <ArrowUpRight size={13} />
+              </Link>
+            ))}
+          </div>
+        </div>
+      ))}
+    </nav>
     <Link href="/contact" className="nav-cta">Plan Your Event <ArrowUpRight size={15} /></Link>
-    <button className="menu-btn" onClick={() => setOpen(!open)} aria-label="Toggle menu">{open ? <X /> : <Menu />}</button>
+    <button className="menu-btn" onClick={() => setOpen(!open)} aria-label="Toggle menu">
+      {open ? <X size={24} /> : <Menu size={24} />}
+    </button>
     {open && <div className="mobile-nav">
-      <div className="mobile-nav-logo"><Logo variant="light" height={40} /></div>
-      {navGroups.map(g => <div className="mobile-nav-group" key={g.name}><button className="mobile-services-trigger" onClick={() => setMobileGroup(mobileGroup === g.name ? '' : g.name)}>{g.name}<ChevronDown className={mobileGroup === g.name ? 'rotate' : ''} size={15} /></button>{mobileGroup === g.name && <div className="mobile-service-list"><Link onClick={close} href={g.href}>View {g.name}</Link>{g.children?.map(item => <Link onClick={close} key={item.name} href={item.href}>{item.name}</Link>)}</div>}</div>)}
-      <Link onClick={close} className="btn btn-gold" href="/contact">Plan Your Event</Link>
+      <div className="mobile-nav-group">
+        <Link onClick={close} className={`mobile-services-trigger mobile-home-link ${pathname === '/' ? 'active' : ''}`} href="/">
+          Home
+        </Link>
+      </div>
+      {navGroups.map(g => (
+        <div className="mobile-nav-group" key={g.name}>
+          <button className="mobile-services-trigger" onClick={() => setMobileGroup(mobileGroup === g.name ? '' : g.name)}>
+            {g.name}
+            <ChevronDown className={mobileGroup === g.name ? 'rotate' : ''} size={15} />
+          </button>
+          {mobileGroup === g.name && (
+            <div className="mobile-service-list">
+              <Link onClick={close} href={g.href}>View {g.name}</Link>
+              {g.children?.map(item => (
+                <Link onClick={close} key={item.name} href={item.href}>{item.name}</Link>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+      <Link onClick={close} className="btn btn-gold mobile-nav-btn" href="/contact">Plan Your Event</Link>
     </div>}
   </header>;
 }
