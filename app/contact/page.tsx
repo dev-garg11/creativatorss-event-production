@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useRef, useState } from 'react';
-import { ArrowUpRight, Phone, Mail, MapPin, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ArrowUpRight, Phone, Mail, MapPin, CheckCircle2, AlertCircle, Info } from 'lucide-react';
 import { site } from '../../data/site';
 import { pageMedia } from '../../data/media';
 import Link from 'next/link';
@@ -9,6 +9,7 @@ import { PageHero } from '../../components/PageHero';
 
 export default function Contact() {
   const [success, setSuccess] = useState(false);
+  const [needsActivation, setNeedsActivation] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
@@ -33,19 +34,17 @@ export default function Contact() {
       const data = await response.json().catch(() => ({}));
 
       if (response.ok && data.ok) {
-        // 1. Refresh form - completely clear all entries ("entry gayab")
+        // Clear all form entries immediately ("jo entry thi wo gayab")
         form.reset();
-        if (formRef.current) {
-          formRef.current.reset();
-        }
+        if (formRef.current) formRef.current.reset();
 
-        // 2. Show prominent success banner
         setSuccess(true);
+        setNeedsActivation(Boolean(data.needsActivation));
 
-        // 3. Smoothly scroll into view
+        // Smooth scroll to top of form section
         setTimeout(() => {
           successRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 80);
+        }, 60);
       } else {
         setErrorMsg(data.message || 'Something went wrong. Please try again or reach us via WhatsApp.');
       }
@@ -119,23 +118,43 @@ export default function Contact() {
         </div>
 
         <div>
-          {/* Success Banner (Appears after submission, entries cleared) */}
+          {/* Success Banner */}
           {success && (
             <div className="enquiry-success-banner" ref={successRef}>
               <div className="enquiry-success-head">
-                <CheckCircle2 size={28} className="enquiry-success-icon" />
+                <CheckCircle2 size={26} className="enquiry-success-icon" />
                 <div style={{ flex: '1 1 auto' }}>
                   <h4>Enquiry Sent Successfully!</h4>
                   <p>
-                    Thank you! Your event enquiry has been received and forwarded to our team (<strong>{site.email}</strong>).
-                    All entries have been cleared and the form is ready for a new submission.
+                    Thank you! Your event enquiry has been received and sent to our team (<strong>{site.email}</strong>).
+                    Form entries have been cleared and the form is refreshed for new submissions.
                   </p>
+
+                  {needsActivation && (
+                    <div style={{
+                      marginTop: 12,
+                      padding: '10px 14px',
+                      background: 'rgba(201, 164, 92, 0.12)',
+                      border: '1px solid var(--gold)',
+                      borderRadius: 6,
+                      fontSize: 12.5,
+                      color: 'var(--navy)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8
+                    }}>
+                      <Info size={16} style={{ color: 'var(--gold)', flexShrink: 0 }} />
+                      <span>
+                        <strong>Check Your Email:</strong> An activation link has been sent to <strong>{site.email}</strong> by FormSubmit. Click &quot;Activate Form&quot; in that email to enable instant inbox delivery for all future enquiries.
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <button
                   type="button"
                   onClick={() => setSuccess(false)}
                   className="enquiry-banner-close"
-                  aria-label="Close notification"
+                  aria-label="Dismiss notification"
                 >
                   ✕
                 </button>
@@ -144,20 +163,20 @@ export default function Contact() {
               <div className="enquiry-success-cta-row">
                 <Link
                   className="btn btn-gold"
-                  style={{ padding: '10px 18px', fontSize: '11px' }}
+                  style={{ padding: '9px 16px', fontSize: '11px' }}
                   href={`https://wa.me/${site.whatsapp}`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Chat on WhatsApp for Instant Response <ArrowUpRight size={14} />
+                  WhatsApp Us for Instant Quote <ArrowUpRight size={14} />
                 </Link>
                 <button
                   type="button"
                   className="btn btn-dark"
-                  style={{ padding: '10px 18px', fontSize: '11px' }}
+                  style={{ padding: '9px 16px', fontSize: '11px' }}
                   onClick={() => setSuccess(false)}
                 >
-                  Dismiss Message
+                  Dismiss
                 </button>
               </div>
             </div>
@@ -171,7 +190,7 @@ export default function Contact() {
             </div>
           )}
 
-          {/* The Contact Form */}
+          {/* Form */}
           <form ref={formRef} onSubmit={submit} className="form-grid">
             <label>
               Full Name *

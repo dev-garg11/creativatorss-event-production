@@ -39,13 +39,15 @@ export async function POST(request: Request) {
     console.log('---------------------------------');
 
     let emailSent = false;
+    let needsActivation = false;
+    let deliveryMessage = 'Thank you! Your enquiry has been received.';
 
-    // 1. Send via Nodemailer if SMTP / Gmail credentials are configured
+    // 1. Send via Nodemailer if SMTP / Gmail credentials exist
     const smtpHost = process.env.SMTP_HOST;
-    const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER;
+    const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || 'devgarg752@gmail.com';
     const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD;
 
-    if (smtpUser && smtpPass) {
+    if (smtpPass) {
       try {
         const transporter = smtpHost
           ? nodemailer.createTransport({
@@ -102,14 +104,17 @@ export async function POST(request: Request) {
       }
     }
 
-    // 2. Gateway delivery to TARGET_EMAIL (works out-of-the-box without server passwords)
+    // 2. Gateway delivery to devgarg752@gmail.com with required web headers
     if (!emailSent) {
       try {
         const formSubmitRes = await fetch(`https://formsubmit.co/ajax/${TARGET_EMAIL}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Accept: 'application/json'
+            Accept: 'application/json',
+            Referer: 'https://creativatorss-event-production.vercel.app/contact',
+            Origin: 'https://creativatorss-event-production.vercel.app',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
           },
           body: JSON.stringify({
             _subject: `New Event Enquiry: ${name} (${eventType})`,
@@ -131,21 +136,27 @@ export async function POST(request: Request) {
           })
         });
 
-        if (formSubmitRes.ok) {
+        const resData = await formSubmitRes.json().catch(() => ({}));
+
+        if (resData.success === 'true' || resData.success === true) {
           emailSent = true;
+        } else if (resData.message && resData.message.includes('Activation')) {
+          needsActivation = true;
+          deliveryMessage = resData.message;
+          console.log('FormSubmit requires activation: check inbox of', TARGET_EMAIL);
         } else {
-          const txt = await formSubmitRes.text();
-          console.warn('FormSubmit response:', txt);
+          console.warn('FormSubmit status:', resData);
         }
       } catch (err: any) {
-        console.warn('FormSubmit forward error:', err?.message || err);
+        console.warn('FormSubmit network error:', err?.message || err);
       }
     }
 
     return NextResponse.json({
       ok: true,
       emailSent,
-      message: 'Thank you! Your enquiry has been received.'
+      needsActivation,
+      message: deliveryMessage
     });
   } catch (error: any) {
     console.error('API enquiry error:', error);
