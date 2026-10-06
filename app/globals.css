@@ -11,20 +11,21 @@
 @media(max-width:700px){.nav{height:70px;padding:0 6vw}.nav nav,.nav-cta{display:none}.menu-btn{display:block;background:none;border:0;color:inherit}.mobile-nav{display:flex;position:absolute;top:70px;left:0;right:0;background:var(--navy);color:#fff;flex-direction:column;padding:22px 6vw;gap:22px;box-shadow:0 10px 20px #0002}.mobile-nav .btn{width:max-content}.mobile-services-trigger{display:flex;justify-content:space-between;align-items:center;color:#fff;background:none;border:0;padding:0;font-size:16px;text-align:left}.mobile-service-list{display:flex;flex-direction:column;gap:14px;padding:0 0 0 16px;border-left:1px solid var(--gold);font-size:13px;color:#d7d7e0}.hero{min-height:700px}.hero-content{padding:30px 6vw 0}.hero h1{font-size:clamp(45px,13vw,75px)}.hero-intro{font-size:13px}.hero-actions{flex-direction:column;align-items:flex-start}.scroll-cue{display:none}.intro-grid,.faq-grid,.detail-copy,.contact-grid{grid-template-columns:1fr;gap:50px}.intro-images{height:430px}.intro-copy h2{font-size:47px}.section-head,.why-heading{display:block}.section-head .text-link{margin-top:25px}.service-row{grid-template-columns:38px 1fr 30px;min-height:100px}.service-desc,.service-image{display:none}.service-title{font-size:25px}.stats-grid{grid-template-columns:1fr 1fr;gap:28px}.stats-grid>div{padding:0;border:0}.stats strong{font-size:41px}.stats span{font-size:9px}.work-grid{grid-template-columns:1fr;gap:40px}.project:nth-child(even){margin-top:0}.project .image-wrap,.project:nth-child(2) .image-wrap,.project:nth-child(3) .image-wrap{height:330px}.why-heading{margin-bottom:35px}.why-grid{grid-template-columns:1fr 1fr}.why-item{padding:18px;min-height:200px}.why-item h3{font-size:20px}.why-item p{font-size:12px}.process-grid{grid-template-columns:1fr;margin-top:50px}.process-step{display:flex;gap:22px;border-right:0;border-bottom:1px solid #ffffff44;padding:20px 0;margin:0}.process-step h3{margin:0 0 10px}.gallery-grid{grid-template-columns:1fr 1fr;grid-auto-rows:190px}.g-1,.g-3{grid-row:span 1}.g-3{grid-column:span 1}.cta{height:520px}.footer-top{grid-template-columns:1fr 1fr;padding:70px 6vw 50px;gap:38px 20px}.footer-top>div:first-child{grid-column:1/-1}.footer-bottom{margin:0 6vw;display:block;line-height:2}.page-hero{padding:145px 6vw 75px}.page-hero h1{font-size:56px}.detail-hero{min-height:580px;padding:120px 6vw 70px}.detail-hero h1{font-size:57px}.detail-copy{padding:75px 6vw}.detail-copy h2{font-size:45px}.contact-grid{padding:70px 6vw}.form-grid{grid-template-columns:1fr}.full{grid-column:auto}.blog-grid{grid-template-columns:1fr;padding:60px 6vw}.blog-card .image-wrap{height:250px}}
 .nav:not(.nav-scrolled){background:transparent;color:#fff}
 .nav:not(.nav-scrolled) .brand,.nav:not(.nav-scrolled) .menu-btn{color:#fff}
-.nav-scrolled .brand,.nav-scrolled .menu-btn{color:var(--navy)}
+.nav-scrolled .brand,.nav-scrolled .menu-btn{color:#fff}
 .nav .brand{position:relative;z-index:2;text-shadow:0 1px 10px rgba(0,0,0,.35)}
 .nav-scrolled .brand{text-shadow:none}
-.nav-scrolled .nav-dropdown>a,.nav-scrolled nav>a{color:var(--ink)}
+.nav-scrolled .nav-dropdown>a,.nav-scrolled nav>a{color:#fff}
 .nav-scrolled .nav-dropdown>a:hover,.nav-scrolled nav>a:hover{color:var(--gold)}
 
 /* Navbar contrast and responsive safety */
 .nav:not(.nav-scrolled) nav .services-trigger,
 .nav:not(.nav-scrolled) nav .services-trigger:visited{color:#fff}
-.nav-scrolled{background:#f7f4ee!important;color:var(--navy)!important;border-bottom:1px solid #e1ded6}
+.nav-scrolled{background:var(--navy)!important;color:#fff!important;border-bottom:1px solid rgba(255,255,255,.12)!important;box-shadow:0 4px 20px rgba(0,0,0,.3)!important}
 .nav-scrolled nav .services-trigger,
-.nav-scrolled nav .services-trigger:visited{color:var(--navy)!important}
+.nav-scrolled nav .services-trigger:visited{color:#fff!important}
+.nav-scrolled nav .services-trigger:hover{color:var(--gold)!important}
 .nav-scrolled .nav-cta{color:#111!important}
-.nav-scrolled .menu-btn{color:var(--navy)!important}
+.nav-scrolled .menu-btn{color:#fff!important}
 .menu-btn{cursor:pointer;position:relative;z-index:32}
 
 @media (max-width:1100px){
