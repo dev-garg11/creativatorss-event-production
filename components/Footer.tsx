@@ -8,14 +8,11 @@ import { services } from '../data/services';
 import { Logo } from './Logo';
 
 export function Footer() {
-  const pathname = usePathname();
-  const darkFooter = pathname === '/events' || pathname === '/gallery';
-
   return (
     <footer>
       <div className="footer-top container">
         <div>
-          <Logo variant={darkFooter ? 'light' : 'dark'} height={62} />
+          <Logo variant="light" height={62} />
           <p className="footer-copy">
             We create considered events, bold productions and experiences that people remember.
           </p>
