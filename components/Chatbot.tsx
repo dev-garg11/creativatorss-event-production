@@ -194,7 +194,9 @@ export function Chatbot() {
       : null;
 
     if (!SpeechRecognition) {
-      alert('Voice input is not supported by your browser. Please use Google Chrome, Edge, or Safari.');
+      setVoiceFeedback('Voice input is best supported on Google Chrome, Edge, and Safari.');
+      setTimeout(() => setVoiceFeedback(''), 5000);
+      alert('Voice input is not supported by your current browser. Please use Google Chrome, Microsoft Edge, or Safari.');
       return;
     }
 
@@ -211,29 +213,42 @@ export function Chatbot() {
 
       recognition.onstart = () => {
         setIsListening(true);
-        setVoiceFeedback(voiceLang === 'hi-IN' ? 'Sun raha hoon... Boliye ✨' : 'Listening... Speak now ✨');
+        setVoiceFeedback(voiceLang === 'hi-IN' ? '🎙️ Sun raha hoon... Boliye ✨' : '🎙️ Listening... Speak now ✨');
       };
 
       recognition.onresult = (event: any) => {
-        const current = event.resultIndex;
-        const transcript = event.results[current][0].transcript;
-        setInputText(transcript);
+        let fullTranscript = '';
+        let isFinalResult = false;
 
-        if (event.results[current].isFinal) {
+        for (let i = 0; i < event.results.length; i++) {
+          fullTranscript += event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            isFinalResult = true;
+          }
+        }
+
+        if (fullTranscript) {
+          setInputText(fullTranscript);
+        }
+
+        if (isFinalResult && fullTranscript.trim()) {
           setVoiceFeedback('Processing your question...');
           setTimeout(() => {
-            handleSendMessage(transcript);
+            handleSendMessage(fullTranscript.trim());
             stopListening();
-          }, 450);
+          }, 350);
         }
       };
 
       recognition.onerror = (event: any) => {
         console.warn('Speech recognition error:', event.error);
         setIsListening(false);
-        if (event.error === 'not-allowed') {
-          setVoiceFeedback('Microphone permission blocked. Please allow mic in browser settings.');
-          setTimeout(() => setVoiceFeedback(''), 4000);
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          setVoiceFeedback('⚠️ Mic blocked. Click the lock/mic icon in URL bar to Allow.');
+          setTimeout(() => setVoiceFeedback(''), 5000);
+        } else if (event.error === 'no-speech') {
+          setVoiceFeedback('Aawaz nahi suni. Please mic ke paas bolein.');
+          setTimeout(() => setVoiceFeedback(''), 3000);
         } else {
           setVoiceFeedback('');
         }
@@ -259,11 +274,14 @@ export function Chatbot() {
       } catch {}
     }
     setIsListening(false);
-    setVoiceFeedback('');
+    setTimeout(() => setVoiceFeedback(''), 1000);
   };
 
   const toggleListening = () => {
     if (isListening) {
+      if (inputText.trim()) {
+        handleSendMessage(inputText.trim());
+      }
       stopListening();
     } else {
       startListening();
