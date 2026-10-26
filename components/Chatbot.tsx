@@ -47,14 +47,14 @@ export function Chatbot() {
     const initialGreeting: ChatMessage = {
       id: 'msg-welcome',
       sender: 'bot',
-      text: `Hello! 👋 Welcome to **Creativatorss Event & Production**!\n\nMain aapki **Hindi ya English** dono mein help kar sakta hoon. Main sirf Creativatorss aur hamari website se judi jankari (Weddings, Corporate, Shoots, Fashion Shows, Celebrity Booking, Pricing, Location) provide karta hoon.\n\nAap kya jaanna chahte hain?`,
+      text: `Hello! 👋 Welcome to **Creativatorss Event & Production**!\n\nI am your dedicated virtual assistant. I can help you with all questions regarding our website and services — including **Luxury Weddings, Corporate Events, Fashion Shows, Brand Shoots, Artist & Celebrity Management, Pricing & Office Locations** (I support both English & Hindi).\n\nHow can I help you with your event today?`,
       timestamp: timeStr,
       suggestions: [
         '✨ What services do you offer?',
-        '💍 Wedding planning ki jankari',
+        '💍 Wedding Planning details',
         '🏢 Corporate Events & Conferences',
-        '💰 Event ka kitna kharcha hota hai?',
-        '📍 Office kahan par hai?'
+        '💰 How to get a custom quote?',
+        '📍 Where is your office located?'
       ],
       actions: [
         {
@@ -144,7 +144,7 @@ export function Chatbot() {
       {
         id: `reset-${Date.now()}`,
         sender: 'bot',
-        text: `Chat reset ho gayi hai. Main aapki kya sahayata kar sakta hoon?`,
+        text: `Chat has been reset. How can I help you with your event today?`,
         timestamp: timeStr,
         suggestions: INITIAL_SUGGESTIONS.map(s => s.query)
       }
@@ -220,7 +220,7 @@ export function Chatbot() {
             </div>
             <div className="chatbot-teaser-text">
               <strong>Creativatorss AI</strong>
-              <span>Koi sawaal hai? Click to chat! ✨</span>
+              <span>Have an event query? Click to chat! ✨</span>
             </div>
           </div>
           <button
@@ -328,7 +328,6 @@ export function Chatbot() {
                                 rel="noopener noreferrer"
                                 className="chatbot-action-pill chatbot-action-whatsapp"
                               >
-                                <span>💬</span>
                                 <span>{act.label}</span>
                                 <ExternalLink size={11} />
                               </a>
