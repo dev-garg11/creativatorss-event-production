@@ -1,5 +1,7 @@
 import { site } from './site';
 import { services } from './services';
+import { clients } from './clients';
+import { faqs, posts } from './content';
 
 export interface ActionButton {
   label: string;
@@ -782,7 +784,35 @@ export function getChatbotResponse(userMessage: string, sessionLang?: 'hi' | 'en
     };
   }
 
-  // 14. ABOUT / EXPERIENCE / CREDIBILITY / TRACK RECORD / STATS
+  // 14. CLIENTS / BRAND PARTNERS
+  if (
+    norm.includes('client') ||
+    norm.includes('clients') ||
+    norm.includes('companies worked') ||
+    norm.includes('worked with') ||
+    norm.includes('brand partners') ||
+    norm.includes('which brands')
+  ) {
+    const clientNames = clients.slice(0, 10).map((client) => client.name).join(', ');
+
+    return {
+      text: lang === 'hi'
+        ? `Creativatorss website par listed kuch clients aur brand partners hain: **${clientNames}** aur bhi kai partners.\n\n` +
+          `Hum corporate events, brand experiences, launches, fashion projects aur live productions ke liye customized teams provide karte hain. Specific brief ke liye event type, city aur date share kijiye.`
+        : `Some clients and brand partners listed on the Creativatorss website include **${clientNames}**, along with many other partners.\n\n` +
+          `We build customized teams for corporate events, brand experiences, launches, fashion projects, and live productions. Share your event type, city, and date for a relevant recommendation.`,
+      actions: [
+        { label: lang === 'hi' ? 'About Page Dekhein' : 'View About Page', type: 'link', href: '/about', icon: 'external' },
+        { label: lang === 'hi' ? 'Team Se Baat Karein' : 'Talk to the Team', type: 'link', href: '/contact', icon: 'calendar' }
+      ],
+      suggestions: lang === 'hi'
+        ? ['Corporate event ke baare mein batao', 'Brand activation plan karni hai', 'Portfolio dikhao']
+        : ['Tell me about corporate events', 'I need a brand activation', 'Show me the portfolio'],
+      lang
+    };
+  }
+
+  // 15. ABOUT / EXPERIENCE / CREDIBILITY / TRACK RECORD / STATS
   if (
     norm.includes('about') ||
     norm.includes('who are you') ||
@@ -828,7 +858,7 @@ export function getChatbotResponse(userMessage: string, sessionLang?: 'hi' | 'en
     };
   }
 
-  // 15. PORTFOLIO / GALLERY / PAST EVENTS / PHOTOS
+  // 16. PORTFOLIO / GALLERY / PAST EVENTS / PHOTOS
   if (
     norm.includes('portfolio') ||
     norm.includes('gallery') ||
@@ -836,6 +866,7 @@ export function getChatbotResponse(userMessage: string, sessionLang?: 'hi' | 'en
     norm.includes('video') ||
     norm.includes('work') ||
     norm.includes('past event') ||
+    norm.includes('events page') ||
     norm.includes('sample') ||
     norm.includes('dikhao')
   ) {
@@ -873,7 +904,7 @@ export function getChatbotResponse(userMessage: string, sessionLang?: 'hi' | 'en
     };
   }
 
-  // 16. STAGE / PRODUCTION / SOUND / LIGHTS / AV
+  // 17. STAGE / PRODUCTION / SOUND / LIGHTS / AV
   if (
     norm.includes('stage') ||
     norm.includes('light') ||
@@ -915,7 +946,82 @@ export function getChatbotResponse(userMessage: string, sessionLang?: 'hi' | 'en
     };
   }
 
-  // 17. WEBSITE PAGES / BLOG / POLICY / NAVIGATION
+  // 18. BLOG / JOURNAL
+  if (
+    norm.includes('blog') ||
+    norm.includes('article') ||
+    norm.includes('journal') ||
+    norm.includes('blog post')
+  ) {
+    const blogPosts = posts
+      .map((post) => `• [${post.title}](/blog/${post.slug}) — ${post.excerpt}`)
+      .join('\n');
+
+    return {
+      text: lang === 'hi'
+        ? `Creativatorss ke blog / journal mein event planning, production aur brand activations par ye articles available hain:\n\n${blogPosts}\n\nAap kisi bhi title par click karke poora article padh sakte hain.`
+        : `The Creativatorss blog covers event planning, production, and brand activations. Here are the current articles:\n\n${blogPosts}\n\nClick any title to read the full article.`,
+      actions: [
+        { label: lang === 'hi' ? 'Saare Articles Dekhein' : 'View All Articles', type: 'link', href: '/blog', icon: 'external' },
+        { label: lang === 'hi' ? 'Team Se Baat Karein' : 'Talk to the Team', type: 'link', href: '/contact', icon: 'calendar' }
+      ],
+      suggestions: lang === 'hi'
+        ? ['Aapki services kya hain?', 'Brand activation kaise plan hoti hai?', 'Portfolio dikhao']
+        : ['What services do you provide?', 'How do brand activations work?', 'Show me the portfolio'],
+      lang
+    };
+  }
+
+  // 19. FAQ / COMMON QUESTIONS
+  if (
+    norm.includes('faq') ||
+    norm.includes('frequently asked') ||
+    norm.includes('common question') ||
+    norm.includes('sawal') ||
+    norm.includes('sawaal')
+  ) {
+    const faqList = faqs.map((question) => `• ${question}`).join('\n');
+
+    return {
+      text: lang === 'hi'
+        ? `Website ke common FAQs ye hain:\n\n${faqList}\n\nAap inmein se kisi bhi sawaal ko pooch sakte hain—main uska detail answer aur relevant page link dunga.`
+        : `These are the common FAQs covered on the website:\n\n${faqList}\n\nAsk any one of them and I will give you a detailed answer with the relevant page link.`,
+      actions: [
+        { label: lang === 'hi' ? 'Services Dekhein' : 'View Services', type: 'link', href: '/services', icon: 'external' },
+        { label: lang === 'hi' ? 'Contact Karein' : 'Contact the Team', type: 'link', href: '/contact', icon: 'calendar' }
+      ],
+      lang
+    };
+  }
+
+  // 20. PRIVACY POLICY / TERMS
+  if (norm.includes('privacy') || norm.includes('policy')) {
+    return {
+      text: lang === 'hi'
+        ? `Website ki **Privacy Policy** ke mutabik, enquiry form se voluntarily diya gaya naam, contact information aur event requirement enquiry ka jawab dene aur relevant services provide karne ke liye use hota hai. Personal information sell nahi ki jaati.\n\nPoora document yahan padhein: [Privacy Policy](/privacy-policy)`
+        : `The website **Privacy Policy** explains that details voluntarily shared through the enquiry form—such as your name, contact information, and event requirements—are used to respond to enquiries and provide relevant services. Personal information is not sold.\n\nRead the full document: [Privacy Policy](/privacy-policy)`,
+      actions: [
+        { label: lang === 'hi' ? 'Privacy Policy Padhein' : 'Read Privacy Policy', type: 'link', href: '/privacy-policy', icon: 'external' },
+        { label: lang === 'hi' ? 'Contact Karein' : 'Contact the Team', type: 'link', href: '/contact', icon: 'calendar' }
+      ],
+      lang
+    };
+  }
+
+  if (norm.includes('terms') || norm.includes('conditions')) {
+    return {
+      text: lang === 'hi'
+        ? `Website ke **Terms & Conditions** ke hisaab se website content general information ke liye hai aur time ke saath update ho sakta hai. Enquiry submit karna contractual relationship create nahi karta; confirmed engagement alag written agreement se governed hota hai.\n\nPoora document yahan padhein: [Terms & Conditions](/terms)`
+        : `The website **Terms & Conditions** explain that its content is general information and may be updated as services and portfolio develop. Submitting an enquiry does not create a contractual relationship; a confirmed engagement is governed by a separate written agreement.\n\nRead the full document: [Terms & Conditions](/terms)`,
+      actions: [
+        { label: lang === 'hi' ? 'Terms Padhein' : 'Read Terms', type: 'link', href: '/terms', icon: 'external' },
+        { label: lang === 'hi' ? 'Contact Karein' : 'Contact the Team', type: 'link', href: '/contact', icon: 'calendar' }
+      ],
+      lang
+    };
+  }
+
+  // 21. WEBSITE PAGES / NAVIGATION
   if (
     norm.includes('website') ||
     norm.includes('site') ||
@@ -961,7 +1067,7 @@ export function getChatbotResponse(userMessage: string, sessionLang?: 'hi' | 'en
     };
   }
 
-  // 18. THANKS / APPRECIATION
+  // 22. THANKS / APPRECIATION
   if (/^(thank|thanks|dhanyawad|shukriya|great|awesome|badhiya|ok|okay|theek\s*hai|thik\s*hai)/i.test(norm)) {
     return {
       text: lang === 'hi'
@@ -972,8 +1078,28 @@ export function getChatbotResponse(userMessage: string, sessionLang?: 'hi' | 'en
     };
   }
 
+  // 23. SMART CLARIFICATION FOR UNMATCHED EVENT REQUESTS
+  const websiteIntentTerms = [
+    'event', 'service', 'booking', 'quote', 'quotation', 'venue', 'decor',
+    'decoration', 'entertainment', 'production', 'campaign', 'activation',
+    'guest', 'timeline', 'availability', 'requirement', 'brief'
+  ];
+
+  if (websiteIntentTerms.some((term) => norm.includes(term))) {
+    return {
+      text: lang === 'hi'
+        ? `Bilkul, main aapki event requirement samajhne aur sahi service suggest karne mein help kar sakta hoon.\n\nKripya ye details share kijiye:\n1. Event type\n2. City / venue\n3. Date ya tentative timeline\n4. Expected guests\n5. Required service ya approximate budget\n\nIn details ke basis par hamari team aapko customized plan aur quotation degi.`
+        : `Absolutely, I can help turn your event requirement into the right Creativatorss service.\n\nPlease share:\n1. Event type\n2. City / venue\n3. Event date or tentative timeline\n4. Expected guest count\n5. Required service or approximate budget\n\nOur team can then prepare a customized plan and quotation for you.`,
+      actions: getContactActions(lang),
+      suggestions: lang === 'hi'
+        ? ['Event ka custom quote chahiye', 'Hamari services batao', 'Team se contact kaise karein?']
+        : ['I need a custom event quote', 'Show me your services', 'How can I contact the team?'],
+      lang
+    };
+  }
+
   // =========================================================================
-  // 19. STRICT REFUSAL FOR OUTSIDE / NON-WEBSITE QUERIES:
+  // 24. STRICT REFUSAL FOR OUTSIDE / NON-WEBSITE QUERIES:
   // "mera chatbot bss jo meri website hai uski jankari dega bss agar user bhar ki
   // zankari pucha saf mana kardega thik ha orr vha par ya likh ka da da ki ya contact number ha"
   // =========================================================================

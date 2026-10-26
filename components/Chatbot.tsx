@@ -12,8 +12,6 @@ import {
   ExternalLink,
   ChevronDown,
   Bot,
-  Mic,
-  MicOff,
   Volume2,
   VolumeX
 } from 'lucide-react';
@@ -60,25 +58,11 @@ export function Chatbot() {
   // Active Chat Language mode ('hi' | 'en')
   const [chatLang, setChatLang] = useState<'hi' | 'en'>('hi');
 
-  // Voice States
-  const [isListening, setIsListening] = useState(false);
-  const [isVoiceStarting, setIsVoiceStarting] = useState(false);
-  const [voiceFeedback, setVoiceFeedback] = useState('');
-  const [voiceLang, setVoiceLang] = useState<'hi-IN' | 'en-IN'>('hi-IN');
   const [isVoiceOutputEnabled, setIsVoiceOutputEnabled] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const recognitionRef = useRef<any>(null);
-  const voiceStartIdRef = useRef(0);
-
-  const showVoiceFeedback = (message: string, duration = 5000) => {
-    setVoiceFeedback(message);
-    if (duration > 0) {
-      window.setTimeout(() => setVoiceFeedback(''), duration);
-    }
-  };
 
   useEffect(() => {
     setMounted(true);
@@ -90,7 +74,7 @@ export function Chatbot() {
     const initialGreeting: ChatMessage = {
       id: 'msg-welcome',
       sender: 'bot',
-      text: `Namaste & Welcome! 👋 **Creativatorss Event & Production** mein aapka swagat hai!\n\nMain aapka personal event assistant hoon — **main Hindi aur English dono samajhta hoon aur baat kar sakta hoon**.\n\nAap Creativatorss ki kisi bhi service (**Weddings, Corporate Events, Fashion Shows, Brand Shoots, Artist & Celebrity Management, Pricing & Office Locations**) ke baare mein pooch sakte hain.\n\nAap niche type kar sakte hain ya 🎙️ **Mic icon** daba kar direct bol sakte hain!`,
+      text: `Namaste & Welcome! 👋 **Creativatorss Event & Production** mein aapka swagat hai!\n\nMain aapka personal event assistant hoon — **main Hindi aur English dono samajhta hoon aur baat kar sakta hoon**.\n\nAap Creativatorss ki kisi bhi service (**Weddings, Corporate Events, Fashion Shows, Brand Shoots, Artist & Celebrity Management, Pricing & Office Locations**) ke baare mein pooch sakte hain.\n\nAap apna sawaal neeche type karke bhej sakte hain.`,
       timestamp: timeStr,
       suggestions: [
         '✨ Hamari Services kya hain?',
@@ -141,16 +125,12 @@ export function Chatbot() {
       setTimeout(() => {
         inputRef.current?.focus();
       }, 200);
-    } else {
-      stopListening();
-      stopSpeaking();
     }
   }, [isOpen]);
 
   // Cleanup speech synthesis on unmount
   useEffect(() => {
     return () => {
-      stopListening();
       stopSpeaking();
     };
   }, []);
@@ -200,147 +180,9 @@ export function Chatbot() {
     setIsSpeaking(null);
   };
 
-  // Speech Recognition (Voice Input) functions
-  const startListening = () => {
-    stopSpeaking();
-
-    const SpeechRecognition = typeof window !== 'undefined'
-      ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
-      : null;
-
-    if (!SpeechRecognition) {
-      showVoiceFeedback('Voice input ke liye Chrome, Edge ya Safari use kijiye.');
-      return;
-    }
-
-    if (typeof window !== 'undefined' && !window.isSecureContext && window.location.hostname !== 'localhost') {
-      showVoiceFeedback('Mic ke liye website HTTPS ya localhost par kholni hogi.');
-      return;
-    }
-
-    setIsVoiceStarting(true);
-    // Start directly from the button click. SpeechRecognition owns the browser
-    // microphone permission flow; awaiting getUserMedia here can lose the
-    // user gesture and make recognition fail with a misleading permission error.
-    setVoiceFeedback(voiceLang === 'hi-IN' ? 'Mic start ho raha hai...' : 'Starting microphone...');
-    const voiceStartId = ++voiceStartIdRef.current;
-
-    try {
-      if (recognitionRef.current) {
-        try { recognitionRef.current.abort(); } catch { /* already stopped */ }
-        recognitionRef.current = null;
-      }
-
-      if (voiceStartIdRef.current !== voiceStartId) return;
-
-      const recognition = new SpeechRecognition();
-      recognition.lang = voiceLang;
-      recognition.interimResults = true;
-      recognition.maxAlternatives = 1;
-      recognition.continuous = false;
-
-      recognition.onstart = () => {
-        setIsListening(true);
-        setIsVoiceStarting(false);
-        setVoiceFeedback(voiceLang === 'hi-IN' ? '🎙️ Sun raha hoon... Boliye ✨' : '🎙️ Listening... Speak now ✨');
-      };
-
-      recognition.onresult = (event: any) => {
-        let fullTranscript = '';
-        let isFinalResult = false;
-
-        for (let i = 0; i < event.results.length; i++) {
-          fullTranscript += event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            isFinalResult = true;
-          }
-        }
-
-        if (fullTranscript) {
-          setInputText(fullTranscript);
-        }
-
-        if (isFinalResult && fullTranscript.trim()) {
-          setVoiceFeedback('Processing your question...');
-          setTimeout(() => {
-            handleSendMessage(fullTranscript.trim());
-            stopListening();
-          }, 350);
-        }
-      };
-
-      recognition.onerror = (event: any) => {
-        if (event.error === 'aborted' && recognitionRef.current !== recognition) return;
-        console.warn('Speech recognition error:', event.error);
-        setIsListening(false);
-        setIsVoiceStarting(false);
-        if (event.error === 'audio-capture') {
-          showVoiceFeedback('Mic detect nahi hua. Windows/browser me microphone enabled hai?');
-        } else if (event.error === 'network') {
-          showVoiceFeedback('Voice service connect nahi ho paayi. Internet check karke dobara try karein.');
-        } else if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          showVoiceFeedback('⚠️ Mic blocked hai. URL bar ke lock/mic icon par click karke Allow karein.');
-        } else if (event.error === 'no-speech') {
-          showVoiceFeedback('Aawaz nahi suni. Please mic ke paas bolkar dobara try karein.', 3000);
-        } else {
-          setVoiceFeedback('');
-        }
-      };
-
-      recognition.onend = () => {
-        if (recognitionRef.current !== recognition) return;
-        setIsListening(false);
-        setIsVoiceStarting(false);
-        if (recognitionRef.current === recognition) {
-          recognitionRef.current = null;
-        }
-      };
-
-      recognitionRef.current = recognition;
-      recognition.start();
-    } catch (err: any) {
-      console.error('Speech recognition start error:', err);
-      setIsListening(false);
-      setIsVoiceStarting(false);
-      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
-        showVoiceFeedback('⚠️ Mic permission denied hai. URL bar ke lock/mic icon se Allow karke page reload karein.');
-      } else if (err?.name === 'NotFoundError') {
-        showVoiceFeedback('Mic nahi mila. Windows me microphone connect karke dobara try karein.');
-      } else if (err?.name === 'NotReadableError') {
-        showVoiceFeedback('Mic kisi aur app me use ho raha hai. Use band karke dobara try karein.');
-      } else {
-        showVoiceFeedback('Mic start nahi ho paaya. HTTPS/localhost par kholkar dobara try karein.');
-      }
-    }
-  };
-
-  const stopListening = () => {
-    voiceStartIdRef.current += 1;
-    if (recognitionRef.current) {
-      const recognition = recognitionRef.current;
-      recognitionRef.current = null;
-      try { recognition.abort(); } catch { /* already stopped */ }
-    }
-    setIsListening(false);
-    setIsVoiceStarting(false);
-    window.setTimeout(() => setVoiceFeedback(''), 1000);
-  };
-
-  const toggleListening = () => {
-    if (isListening || isVoiceStarting) {
-      if (inputText.trim()) {
-        handleSendMessage(inputText.trim());
-      }
-      stopListening();
-    } else {
-      startListening();
-    }
-  };
-
   const toggleLanguage = () => {
     const nextLang = chatLang === 'hi' ? 'en' : 'hi';
     setChatLang(nextLang);
-    setVoiceLang(nextLang === 'hi' ? 'hi-IN' : 'en-IN');
 
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const switchMsg: ChatMessage = {
@@ -365,11 +207,9 @@ export function Chatbot() {
     if (text === '🇮🇳 हिंदी में बात करें' || text.toLowerCase() === 'hindi me baat karo') {
       activeLang = 'hi';
       setChatLang('hi');
-      setVoiceLang('hi-IN');
     } else if (text === '🇬🇧 Chat in English' || text.toLowerCase() === 'speak in english') {
       activeLang = 'en';
       setChatLang('en');
-      setVoiceLang('en-IN');
     }
 
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -391,7 +231,6 @@ export function Chatbot() {
       // Auto sync active session language if user spoke/typed in Hindi or English
       if (botResponse.lang && botResponse.lang !== activeLang) {
         setChatLang(botResponse.lang);
-        setVoiceLang(botResponse.lang === 'hi' ? 'hi-IN' : 'en-IN');
       }
 
       const newBotMsgId = `bot-${Date.now()}`;
@@ -423,7 +262,6 @@ export function Chatbot() {
 
   const resetChat = () => {
     stopSpeaking();
-    stopListening();
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     setMessages([
       {
@@ -431,7 +269,7 @@ export function Chatbot() {
         sender: 'bot',
         text: chatLang === 'hi'
           ? `Chat reset ho gayi hai. 🙏 Aap Creativatorss ke kisi bhi event ya service ke baare mein pooch sakte hain. Boliye ya type kijiye!`
-          : `Chat has been reset. How can I help you with your event today? You can type or use the mic to speak!`,
+          : `Chat has been reset. How can I help you with your event today? Type your question and I will help!`,
         timestamp: timeStr,
         suggestions: (chatLang === 'hi' ? INITIAL_SUGGESTIONS_HI : INITIAL_SUGGESTIONS_EN).map(s => s.query),
         lang: chatLang
@@ -559,7 +397,7 @@ export function Chatbot() {
                   Creativatorss Assistant <Sparkles size={13} className="chatbot-gold-icon" />
                 </div>
                 <div className="chatbot-subtitle">
-                  <span className="chatbot-live-dot" /> Online • Voice & Text Enabled
+                  <span className="chatbot-live-dot" /> Online • Smart Text Assistant
                 </div>
               </div>
             </div>
@@ -688,8 +526,8 @@ export function Chatbot() {
                         type="button"
                         className={`chatbot-speak-bubble-btn ${isSpeaking === msg.id ? 'is-speaking' : ''}`}
                         onClick={() => speakText(msg.text, msg.lang, msg.id)}
-                        title={isSpeaking === msg.id ? 'Stop listening' : 'Listen to this answer'}
-                        aria-label="Listen to answer"
+                        title={isSpeaking === msg.id ? 'Stop audio' : 'Play this answer aloud'}
+                        aria-label="Play answer aloud"
                       >
                         <Volume2 size={11} />
                         {isSpeaking === msg.id && <span className="chatbot-sound-indicator">Speaking...</span>}
@@ -789,48 +627,6 @@ export function Chatbot() {
             </button>
           </div>
 
-          {/* Voice Listening Feedback Banner */}
-          {(isListening || voiceFeedback) && (
-            <div className="chatbot-voice-banner">
-              <div className="chatbot-voice-pulse-ring" />
-              <div className="chatbot-voice-wave">
-                <span />
-                <span />
-                <span />
-                <span />
-              </div>
-              <span className="chatbot-voice-text">{voiceFeedback || 'Listening... Speak in Hindi or English'}</span>
-              
-              <div className="chatbot-voice-lang-toggle">
-                <button
-                  type="button"
-                  className={voiceLang === 'hi-IN' ? 'is-active' : ''}
-                  onClick={() => setVoiceLang('hi-IN')}
-                  title="Hindi & Hinglish voice recognition"
-                >
-                  Hindi
-                </button>
-                <button
-                  type="button"
-                  className={voiceLang === 'en-IN' ? 'is-active' : ''}
-                  onClick={() => setVoiceLang('en-IN')}
-                  title="English voice recognition"
-                >
-                  English
-                </button>
-              </div>
-
-              <button
-                type="button"
-                className="chatbot-voice-close"
-                onClick={stopListening}
-                aria-label="Stop listening"
-              >
-                <X size={13} />
-              </button>
-            </div>
-          )}
-
           {/* Input Footer */}
           <div className="chatbot-footer">
             <div className="chatbot-input-wrap">
@@ -840,11 +636,9 @@ export function Chatbot() {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={
-                  isListening
-                    ? (chatLang === 'hi' ? '🎙️ Sun raha hoon... Boliye ✨' : '🎙️ Listening... Speak now ✨')
-                    : (chatLang === 'hi' ? 'Creativatorss ke baare me puchein ya mic dabayein...' : 'Ask about events or tap mic to speak...')
-                }
+                placeholder={chatLang === 'hi'
+                  ? 'Creativatorss ke baare mein apna sawaal poochhein...'
+                  : 'Ask anything about Creativatorss events and services...'}
                 className="chatbot-input"
                 maxLength={400}
               />
@@ -861,17 +655,6 @@ export function Chatbot() {
                 💬
               </a>
 
-              {/* Microphone Voice Button */}
-              <button
-                type="button"
-                onClick={toggleListening}
-                className={`chatbot-mic-btn ${isListening || isVoiceStarting ? 'is-listening' : ''}`}
-                title={isListening || isVoiceStarting ? 'Stop listening (Tap to cancel)' : 'Speak to AI Assistant (Voice Input)'}
-                aria-label={isListening || isVoiceStarting ? 'Stop voice input' : 'Start voice input'}
-              >
-                {isListening || isVoiceStarting ? <MicOff size={15} /> : <Mic size={15} />}
-              </button>
-
               {/* Send Button */}
               <button
                 type="button"
@@ -884,7 +667,7 @@ export function Chatbot() {
               </button>
             </div>
             <div className="chatbot-footer-brand">
-              <span>Creativatorss Event & Production · Voice & Text Assistant</span>
+              <span>Creativatorss Event & Production · Smart Text Assistant</span>
             </div>
           </div>
         </div>
