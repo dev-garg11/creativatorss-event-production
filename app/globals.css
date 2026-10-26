@@ -907,16 +907,55 @@ footer .footer-top .site-logo{margin-bottom:14px}
   }
 }
 
-.scroll-cue svg {
+.scroll-cue {
+  position: absolute;
+  bottom: 30px;
+  right: 5vw;
+  background: rgba(15, 18, 55, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(201, 164, 92, 0.45);
+  color: #ffffff;
+  padding: 9px 18px;
+  border-radius: 40px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  z-index: 5;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 12px rgba(201, 164, 92, 0.2);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+}
+
+.scroll-cue:hover {
+  background: #c9a45c;
+  color: #111218;
+  border-color: #c9a45c;
+  transform: translateY(-3px);
+  box-shadow: 0 10px 28px rgba(201, 164, 92, 0.55);
+}
+
+.scroll-cue:hover .scroll-cue-arrow {
+  color: #111218;
+  transform: translate(3px, 3px);
+}
+
+.scroll-cue-arrow {
+  color: var(--gold);
+  transition: transform 0.25s ease, color 0.25s ease;
   animation: cueBounce 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 @keyframes cueBounce {
   0%, 100% {
-    transform: translateY(0);
+    transform: translate(0, 0);
   }
   50% {
-    transform: translateY(6px);
+    transform: translate(3px, 3px);
   }
 }
 
