@@ -86,6 +86,10 @@ export function detectLanguage(text: string, sessionLang?: 'hi' | 'en'): 'hi' | 
   }
 
   const norm = normalize(text);
+  if (!norm) {
+    return sessionLang || 'en';
+  }
+
   const words = norm.split(' ').filter(Boolean);
 
   // Distinct Hindi / Hinglish markers
@@ -93,7 +97,7 @@ export function detectLanguage(text: string, sessionLang?: 'hi' | 'en'): 'hi' | 
     'kya', 'kaise', 'kese', 'kahan', 'kaha', 'kidhar', 'kaun', 'kon', 'kitna', 'kitne', 'kitni',
     'chahiye', 'chahie', 'karwana', 'karwa', 'karwani', 'karwane', 'karna', 'karni', 'karne',
     'karo', 'kare', 'karein', 'kardo', 'karao',
-    'hai', 'hain', 'hoon', 'hu', 'ho', 'h', 'hn', 'tha', 'thi', 'the',
+    'hai', 'hain', 'hoon', 'hu', 'ho', 'h', 'hn', 'tha', 'thi',
     'batao', 'bataiye', 'bataye', 'btao', 'bata',
     'dega', 'degi', 'denge', 'shadi', 'shaadi', 'shadiyan', 'baare', 'bare',
     'humko', 'hume', 'hum', 'meri', 'mera', 'mere', 'apka', 'aapka', 'aapki', 'aapke', 'mujhe', 'mujhko',
@@ -139,14 +143,8 @@ export function detectLanguage(text: string, sessionLang?: 'hi' | 'en'): 'hi' | 
     return 'hi';
   }
 
-  // If user was already talking in Hindi, keep Hindi unless they explicitly switch to English
-  if (sessionLang === 'hi') {
-    const isExplicitEnglish = /^(switch to english|speak in english|english please|talk in english|in english)/i.test(norm);
-    if (!isExplicitEnglish) {
-      return 'hi';
-    }
-  }
-
+  // Every message is classified independently so an English query still gets
+  // an English answer after a Hindi/Hinglish message.
   return 'en';
 }
 
@@ -629,16 +627,20 @@ export function getChatbotResponse(userMessage: string, sessionLang?: 'hi' | 'en
 
   // 11. ALL SERVICES SUMMARY
   if (
-    norm.includes('services') ||
-    norm.includes('service') ||
-    norm.includes('kya karte ho') ||
-    norm.includes('kya service') ||
-    norm.includes('what do you do') ||
-    norm.includes('offer') ||
-    norm.includes('capabilities') ||
-    norm.includes('kaam') ||
-    norm.includes('kya kya') ||
-    norm.includes('sab service')
+    !norm.includes('website') &&
+    !norm.includes('site') &&
+    (
+      norm.includes('services') ||
+      norm.includes('service') ||
+      norm.includes('kya karte ho') ||
+      norm.includes('kya service') ||
+      norm.includes('what do you do') ||
+      norm.includes('offer') ||
+      norm.includes('capabilities') ||
+      norm.includes('kaam') ||
+      norm.includes('kya kya') ||
+      norm.includes('sab service')
+    )
   ) {
     return {
       text: lang === 'hi'
@@ -913,7 +915,53 @@ export function getChatbotResponse(userMessage: string, sessionLang?: 'hi' | 'en
     };
   }
 
-  // 17. THANKS / APPRECIATION
+  // 17. WEBSITE PAGES / BLOG / POLICY / NAVIGATION
+  if (
+    norm.includes('website') ||
+    norm.includes('site') ||
+    norm.includes('homepage') ||
+    norm.includes('home page') ||
+    norm.includes('menu') ||
+    norm.includes('pages') ||
+    norm.includes('blog') ||
+    norm.includes('privacy') ||
+    norm.includes('terms') ||
+    norm.includes('conditions')
+  ) {
+    const websiteServiceNames = services.map((service) => service.name).join(', ');
+
+    return {
+      text: lang === 'hi'
+        ? `Creativatorss website par aapko event planning se judi complete information mil jayegi.\n\n` +
+          `• **Services**: ${websiteServiceNames}\n` +
+          `• **About**: Hamari company, experience aur track record\n` +
+          `• **Events / Gallery**: Portfolio, photos aur videos\n` +
+          `• **Blog**: Event planning aur brand activations par articles\n` +
+          `• **Contact**: Enquiry form, phone, email aur WhatsApp\n` +
+          `• **Privacy Policy & Terms**: [Privacy Policy](/privacy-policy) aur [Terms](/terms) mein website use aur enquiry details ki official information\n\n` +
+          `Aap jis page ya service ke baare mein jaana chahte hain, uska naam likh dijiye.`
+        : `The Creativatorss website contains complete information about our event and production work.\n\n` +
+          `• **Services**: ${websiteServiceNames}\n` +
+          `• **About**: Our company, experience, and track record\n` +
+          `• **Events / Gallery**: Portfolio, photos, and videos\n` +
+          `• **Blog**: Articles about event planning and brand activations\n` +
+          `• **Contact**: Enquiry form, phone, email, and WhatsApp\n` +
+          `• **Privacy Policy & Terms**: [Privacy Policy](/privacy-policy) and [Terms](/terms) cover official website-use and enquiry information\n\n` +
+          `Tell me which page or service you would like to explore.`,
+      actions: [
+        { label: lang === 'hi' ? 'Services Dekhein' : 'View Services', type: 'link', href: '/services', icon: 'external' },
+        { label: lang === 'hi' ? 'Portfolio Dekhein' : 'View Portfolio', type: 'link', href: '/events', icon: 'external' },
+        { label: lang === 'hi' ? 'Blog Padhein' : 'Read the Blog', type: 'link', href: '/blog', icon: 'external' },
+        { label: lang === 'hi' ? 'Contact Karein' : 'Contact the Team', type: 'link', href: '/contact', icon: 'calendar' }
+      ],
+      suggestions: lang === 'hi'
+        ? ['Aap kya kya services dete hain?', 'Portfolio aur gallery dikhao', 'Contact details batao']
+        : ['What services do you provide?', 'Show me the portfolio and gallery', 'How can I contact the team?'],
+      lang
+    };
+  }
+
+  // 18. THANKS / APPRECIATION
   if (/^(thank|thanks|dhanyawad|shukriya|great|awesome|badhiya|ok|okay|theek\s*hai|thik\s*hai)/i.test(norm)) {
     return {
       text: lang === 'hi'
@@ -925,7 +973,7 @@ export function getChatbotResponse(userMessage: string, sessionLang?: 'hi' | 'en
   }
 
   // =========================================================================
-  // 18. STRICT REFUSAL FOR OUTSIDE / NON-WEBSITE QUERIES:
+  // 19. STRICT REFUSAL FOR OUTSIDE / NON-WEBSITE QUERIES:
   // "mera chatbot bss jo meri website hai uski jankari dega bss agar user bhar ki
   // zankari pucha saf mana kardega thik ha orr vha par ya likh ka da da ki ya contact number ha"
   // =========================================================================

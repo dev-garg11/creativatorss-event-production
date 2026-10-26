@@ -201,7 +201,7 @@ export function Chatbot() {
   };
 
   // Speech Recognition (Voice Input) functions
-  const startListening = async () => {
+  const startListening = () => {
     stopSpeaking();
 
     const SpeechRecognition = typeof window !== 'undefined'
@@ -219,26 +219,16 @@ export function Chatbot() {
     }
 
     setIsVoiceStarting(true);
-    setVoiceFeedback('Mic permission check ho rahi hai...');
+    // Start directly from the button click. SpeechRecognition owns the browser
+    // microphone permission flow; awaiting getUserMedia here can lose the
+    // user gesture and make recognition fail with a misleading permission error.
+    setVoiceFeedback(voiceLang === 'hi-IN' ? 'Mic start ho raha hai...' : 'Starting microphone...');
     const voiceStartId = ++voiceStartIdRef.current;
 
     try {
       if (recognitionRef.current) {
         try { recognitionRef.current.abort(); } catch { /* already stopped */ }
         recognitionRef.current = null;
-      }
-
-      // SpeechRecognition's permission prompt is inconsistent across browsers.
-      // Ask for the microphone explicitly so blocked devices get a clear error.
-      if (navigator.mediaDevices?.getUserMedia) {
-        const permissionStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          }
-        });
-        permissionStream.getTracks().forEach(track => track.stop());
       }
 
       if (voiceStartIdRef.current !== voiceStartId) return;
