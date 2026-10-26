@@ -47,20 +47,20 @@ export function Chatbot() {
     const initialGreeting: ChatMessage = {
       id: 'msg-welcome',
       sender: 'bot',
-      text: `Hello! 👋 Main hoon **Creativatorss AI Assistant**.\n\nHum Chandigarh aur Pan-India mein **Events, Weddings, Corporate Shows, Celebrity Bookings & Brand Shoots** organize karte hain. Aap website ya kisi bhi event service se related sawaal pooch sakte hain!`,
+      text: `Hello! 👋 Welcome to **Creativatorss Event & Production**!\n\nMain aapki **Hindi ya English** dono mein help kar sakta hoon. Main sirf Creativatorss aur hamari website se judi jankari (Weddings, Corporate, Shoots, Fashion Shows, Celebrity Booking, Pricing, Location) provide karta hoon.\n\nAap kya jaanna chahte hain?`,
       timestamp: timeStr,
       suggestions: [
         '✨ What services do you offer?',
-        '💍 Wedding Planning details',
-        '🏢 Corporate Events',
-        '💰 How to get a quote?',
-        '📍 Where is your office?'
+        '💍 Wedding planning ki jankari',
+        '🏢 Corporate Events & Conferences',
+        '💰 Event ka kitna kharcha hota hai?',
+        '📍 Office kahan par hai?'
       ],
       actions: [
         {
           label: '💬 Chat on WhatsApp',
           type: 'whatsapp',
-          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent('Hi Creativatorss! I would like to inquire about event management services.')}`,
+          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent('Hello Creativatorss! I would like to inquire about event management services.')}`,
           icon: 'whatsapp'
         },
         {
@@ -271,7 +271,7 @@ export function Chatbot() {
                   Creativatorss Assistant <Sparkles size={13} className="chatbot-gold-icon" />
                 </div>
                 <div className="chatbot-subtitle">
-                  <span className="chatbot-live-dot" /> Online • Events & Production Support
+                  <span className="chatbot-live-dot" /> Online • Hindi & English Support
                 </div>
               </div>
             </div>
@@ -449,6 +449,13 @@ export function Chatbot() {
             >
               Pricing
             </button>
+            <button
+              type="button"
+              className="chatbot-quick-pill"
+              onClick={() => handleSendMessage('Creativatorss team se kaise contact karein?')}
+            >
+              Contact
+            </button>
           </div>
 
           {/* Input Footer */}
@@ -460,7 +467,7 @@ export function Chatbot() {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask about events, wedding, prices, booking..."
+                placeholder="Poochiye (Hindi / English) - wedding, cost, booking..."
                 className="chatbot-input"
                 maxLength={400}
               />

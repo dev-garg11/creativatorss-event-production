@@ -13,6 +13,7 @@ export interface ChatResponse {
   text: string;
   actions?: ActionButton[];
   suggestions?: string[];
+  lang?: 'hi' | 'en';
 }
 
 export interface QuickSuggestion {
@@ -20,38 +21,55 @@ export interface QuickSuggestion {
   query: string;
 }
 
-export const INITIAL_SUGGESTIONS: QuickSuggestion[] = [
+export const INITIAL_SUGGESTIONS_EN: QuickSuggestion[] = [
   { label: '✨ Our Services', query: 'What services do you provide?' },
   { label: '💍 Wedding Planning', query: 'Tell me about wedding planning' },
   { label: '🏢 Corporate Events', query: 'Corporate events and conferences' },
   { label: '🌟 Celebrity & Artist', query: 'Celebrity and artist booking' },
-  { label: '💰 Pricing & Quotation', query: 'How much does an event cost?' },
+  { label: '💰 Pricing & Quote', query: 'How much does an event cost?' },
   { label: '📍 Office Location', query: 'Where is your office located?' },
-  { label: '📞 Contact Team', query: 'How can I contact Creativatorss?' },
+  { label: '📞 Contact Details', query: 'How can I contact Creativatorss?' },
 ];
 
-export const FALLBACK_ACTIONS: ActionButton[] = [
+export const INITIAL_SUGGESTIONS_HI: QuickSuggestion[] = [
+  { label: '✨ Hamari Services', query: 'Aap kya kya services dete hain?' },
+  { label: '💍 Wedding Planning', query: 'Wedding planning ki jankari chahiye' },
+  { label: '🏢 Corporate Events', query: 'Corporate events aur conferences' },
+  { label: '🌟 Celebrity & Artist', query: 'Celebrity aur artist booking' },
+  { label: '💰 Kharcha aur Quote', query: 'Event ka kitna kharcha hota hai?' },
+  { label: '📍 Office Kahan Hai', query: 'Aapka office kahan par hai?' },
+  { label: '📞 Contact Karein', query: 'Creativatorss team se kaise contact karein?' },
+];
+
+export const INITIAL_SUGGESTIONS = INITIAL_SUGGESTIONS_EN;
+
+// Official Contact details action buttons
+export const getContactActions = (lang: 'hi' | 'en'): ActionButton[] => [
   {
-    label: '💬 Chat on WhatsApp',
+    label: lang === 'hi' ? '💬 WhatsApp Par Baat Karein' : '💬 Chat on WhatsApp',
     type: 'whatsapp',
-    href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent('Hello Creativatorss! I have an event inquiry and would like to talk to your team.')}`,
+    href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(
+      lang === 'hi'
+        ? 'Namaste Creativatorss, mujhe event planning ke baare me baat karni hai.'
+        : 'Hello Creativatorss, I would like to inquire about event management.'
+    )}`,
     icon: 'whatsapp'
   },
   {
-    label: `📞 Call Us (${site.phone})`,
+    label: lang === 'hi' ? `📞 Call Karein (${site.phone})` : `📞 Call Now (${site.phone})`,
     type: 'call',
     href: `tel:${site.phone.replace(/[^0-9+]/g, '')}`,
     icon: 'phone'
   },
   {
-    label: '📋 Submit Event Enquiry Form',
+    label: lang === 'hi' ? '📋 Enquiry Form Bharein' : '📋 Fill Enquiry Form',
     type: 'link',
     href: '/contact',
     icon: 'external'
   }
 ];
 
-// Helper to normalize user string for comparison
+// Helper to normalize user string
 function normalize(str: string): string {
   return str
     .toLowerCase()
@@ -60,59 +78,127 @@ function normalize(str: string): string {
     .trim();
 }
 
+// Language detector: detects if query is Hindi / Hinglish or English
+export function detectLanguage(text: string): 'hi' | 'en' {
+  // Check for Devanagari characters
+  if (/[\u0900-\u097F]/.test(text)) {
+    return 'hi';
+  }
+
+  const norm = normalize(text);
+  const words = norm.split(' ');
+
+  // Distinct Hindi / Hinglish markers (excluding words that overlap with English like 'do', 'me', 'or')
+  const distinctHindiKeywords = [
+    'kya', 'kaise', 'kese', 'kahan', 'kaha', 'kidhar', 'kaun', 'kon', 'kitna', 'kitne', 'kitni',
+    'chahiye', 'chahie', 'karwana', 'karwa', 'karna', 'karo', 'kare', 'karein',
+    'hai', 'hain', 'hoon', 'batao', 'bataiye', 'bataye',
+    'dega', 'degi', 'denge', 'shadi', 'shaadi', 'shadiyan', 'baare', 'bare',
+    'humko', 'hume', 'hum', 'meri', 'mera', 'mere', 'apka', 'aapka', 'aapki', 'aapke',
+    'baat', 'sampark', 'theek', 'thik', 'haan', 'han',
+    'nahi', 'nhi', 'mat', 'aur', 'vha', 'waha', 'yaha', 'yahan', 'pata', 'shahar',
+    'kab', 'kharcha', 'namaste', 'pranam', 'shukriya', 'dhanyawad', 'kripya', 'madad',
+    'bhai', 'bolo', 'boliye', 'jankari', 'jaankari', 'zankari', 'pucho',
+    'poochna', 'puchein', 'lagega', 'batao'
+  ];
+
+  let hindiScore = 0;
+  for (const word of words) {
+    if (distinctHindiKeywords.includes(word)) {
+      hindiScore++;
+    }
+  }
+
+  // Check common Hindi multi-word combinations
+  if (
+    norm.includes('bata do') ||
+    norm.includes('kar do') ||
+    norm.includes('ke baare') ||
+    norm.includes('ke bare') ||
+    norm.includes('kaise kare') ||
+    norm.includes('kitna hai') ||
+    norm.includes('thik hai') ||
+    norm.includes('thik h')
+  ) {
+    hindiScore += 2;
+  }
+
+  return hindiScore > 0 ? 'hi' : 'en';
+}
+
 // Intent matchers
 export function getChatbotResponse(userMessage: string): ChatResponse {
   const norm = normalize(userMessage);
+  const lang = detectLanguage(userMessage);
 
   if (!norm) {
     return {
-      text: 'Namaste! Aap Creativatorss se related koi bhi sawaal pooch sakte hain. How can I help you today?',
-      suggestions: INITIAL_SUGGESTIONS.map(s => s.query)
+      text: lang === 'hi'
+        ? `Namaste! Main **Creativatorss Event & Production** ka assistant hoon. Aap Creativatorss ki services, events, wedding planning ya booking ke baare me pooch sakte hain.`
+        : `Hello! I am the **Creativatorss Event & Production** assistant. You can ask me anything about our services, wedding planning, corporate events, or bookings.`,
+      suggestions: (lang === 'hi' ? INITIAL_SUGGESTIONS_HI : INITIAL_SUGGESTIONS_EN).map(s => s.query),
+      lang
     };
   }
 
-  // Check for phone number detection (User submitting their number for callback)
+  // 1. PHONE NUMBER DETECTION (Callback request)
   const phoneRegex = /(?:\+?91[\s-]?)?[6-9]\d{9}/;
   const phoneMatch = userMessage.match(phoneRegex);
-  if (phoneMatch && (norm.includes('call') || norm.includes('contact') || norm.includes('number') || norm.includes('callback') || norm.includes('mera') || norm.includes('phone') || norm.length < 25)) {
+  if (
+    phoneMatch &&
+    (norm.includes('call') ||
+      norm.includes('contact') ||
+      norm.includes('number') ||
+      norm.includes('callback') ||
+      norm.includes('mera') ||
+      norm.includes('phone') ||
+      norm.length < 25)
+  ) {
     const detectedPhone = phoneMatch[0];
     return {
-      text: `Bahut badhiya! Humne aapka contact number (${detectedPhone}) note kar liya hai. Hamari event management team jald hi aapse contact karegi.\n\nAap chahein toh turant WhatsApp par bhi connect kar sakte hain:`,
+      text: lang === 'hi'
+        ? `Dhanyawad! Humne aapka contact number (**${detectedPhone}**) note kar liya hai. Hamari event team aapse jald hi sampark karegi.\n\nAap chahein toh turant WhatsApp par bhi jud sakte hain ya direct call kar sakte hain:`
+        : `Thank you! We have received your phone number (**${detectedPhone}**). Our event production team will reach out to you shortly.\n\nYou can also connect instantly via WhatsApp or call us directly:`,
       actions: [
         {
-          label: '💬 Connect on WhatsApp Now',
+          label: lang === 'hi' ? '💬 WhatsApp Par Connect Karein' : '💬 Connect on WhatsApp',
           type: 'whatsapp',
-          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(`Hi, I left my contact number ${detectedPhone} on your website. Please connect with me regarding event planning.`)}`,
+          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(
+            lang === 'hi'
+              ? `Hi, maine website par apna number ${detectedPhone} diya hai. Kripya event details ke liye contact karein.`
+              : `Hi, I submitted my phone number ${detectedPhone} on your website. Please connect regarding event planning.`
+          )}`,
           icon: 'whatsapp'
         },
         {
-          label: '📞 Call Directly Now',
+          label: lang === 'hi' ? `📞 Call Karein (${site.phone})` : `📞 Call Directly (${site.phone})`,
           type: 'call',
           href: `tel:${site.phone.replace(/[^0-9+]/g, '')}`,
           icon: 'phone'
         }
-      ]
+      ],
+      lang
     };
   }
 
-  // 1. GREETINGS
+  // 2. GREETINGS
   if (/^(hi|hello|hey|namaste|hlo|helo|hy|hola|good\s*(morning|afternoon|evening)|kya\s*haal|kem\s*cho|sat\s*sri\s*akal|ss|salam)/i.test(norm)) {
     return {
-      text: `Hello! Welcome to **Creativatorss Event & Production**! ✨\n\nMain aapka personal event assistant hoon. Aap Creativatorss ki services, wedding planning, corporate events, celebrity booking, pricing ya booking process ke baare me kuch bhi pooch sakte hain.\n\nAap kis tarah ke event ke baare mein jaanna chahte hain?`,
-      suggestions: [
-        'What services do you offer?',
-        'Tell me about Wedding Planning',
-        'Corporate Events & Conferences',
-        'How can I get a quote?'
-      ],
+      text: lang === 'hi'
+        ? `Namaste! **Creativatorss Event & Production** mein aapka swagat hai! ✨\n\nMain aapka personal event assistant hoon. Main sirf hamari website aur event services (Wedding, Corporate, Celebrity Booking, Shoots, Fashion Show, Stage & Production) se judi jaankari de sakta hoon.\n\nAap kis service ke baare mein jaanna chahte hain?`
+        : `Hello! Welcome to **Creativatorss Event & Production**! ✨\n\nI am your dedicated event assistant. I specialize strictly in Creativatorss event services, including luxury weddings, corporate conferences, fashion shows, brand shoots, and celebrity bookings.\n\nHow may I help you plan your event today?`,
+      suggestions: lang === 'hi'
+        ? ['Aap kya kya services dete hain?', 'Wedding planning ki jankari', 'Corporate events', 'Event ka quote chahiye']
+        : ['What services do you offer?', 'Wedding Planning details', 'Corporate Events', 'How to get a quote?'],
       actions: [
-        { label: 'View All Services', type: 'link', href: '/services', icon: 'external' },
-        { label: '💬 Chat on WhatsApp', type: 'whatsapp', href: `https://wa.me/${site.whatsapp}`, icon: 'whatsapp' }
-      ]
+        { label: lang === 'hi' ? 'Services Dekhein' : 'View Services', type: 'link', href: '/services', icon: 'external' },
+        { label: lang === 'hi' ? '💬 WhatsApp Chat' : '💬 WhatsApp Us', type: 'whatsapp', href: `https://wa.me/${site.whatsapp}`, icon: 'whatsapp' }
+      ],
+      lang
     };
   }
 
-  // 2. CONTACT DETAILS / PHONE / EMAIL / WHATSAPP
+  // 3. CONTACT DETAILS / PHONE / WHATSAPP / EMAIL
   if (
     norm.includes('contact') ||
     norm.includes('phone') ||
@@ -123,83 +209,33 @@ export function getChatbotResponse(userMessage: string): ChatResponse {
     norm.includes('whatsapp') ||
     norm.includes('call') ||
     norm.includes('baat karni') ||
+    norm.includes('sampark') ||
     norm.includes('kaise contact') ||
     norm.includes('reach out') ||
     norm.includes('talk to')
   ) {
     return {
-      text: `Aap Creativatorss team se direct in madhyamon se jud sakte hain:\n\n` +
-        `📞 **Phone**: [${site.phone}](tel:${site.phone.replace(/[^0-9+]/g, '')}) / [${site.alternatePhone}](tel:${site.alternatePhone.replace(/[^0-9+]/g, '')})\n` +
-        `💬 **WhatsApp**: [+91 8626000002](https://wa.me/${site.whatsapp})\n` +
-        `✉️ **Email**: [${site.email}](mailto:${site.email})\n` +
-        `📍 **Office**: ${site.address.join(', ')}\n\n` +
-        `Hamari team aam taur par turant reply karti hai!`,
-      actions: [
-        {
-          label: '💬 Chat on WhatsApp',
-          type: 'whatsapp',
-          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent('Hi Creativatorss, I would like to discuss an event.')}`,
-          icon: 'whatsapp'
-        },
-        {
-          label: `📞 Call Now (${site.phone})`,
-          type: 'call',
-          href: `tel:${site.phone.replace(/[^0-9+]/g, '')}`,
-          icon: 'phone'
-        },
-        {
-          label: '📋 Open Contact Form',
-          type: 'link',
-          href: '/contact',
-          icon: 'calendar'
-        }
-      ]
+      text: lang === 'hi'
+        ? `Aap **Creativatorss Event & Production** team se in official madhyamon par sampark kar sakte hain:\n\n` +
+          `📞 **Official Phone**: [${site.phone}](tel:${site.phone.replace(/[^0-9+]/g, '')})\n` +
+          `📞 **Alternate Phone**: [${site.alternatePhone}](tel:${site.alternatePhone.replace(/[^0-9+]/g, '')})\n` +
+          `💬 **WhatsApp**: [+91 8626000002](https://wa.me/${site.whatsapp})\n` +
+          `✉️ **Email**: [${site.email}](mailto:${site.email})\n` +
+          `📍 **Office**: ${site.address.join(', ')}\n\n` +
+          `Hamari team aam taur par WhatsApp aur Call par turant response deti hai.`
+        : `You can reach the official **Creativatorss Event & Production** team directly through:\n\n` +
+          `📞 **Primary Phone**: [${site.phone}](tel:${site.phone.replace(/[^0-9+]/g, '')})\n` +
+          `📞 **Alternate Phone**: [${site.alternatePhone}](tel:${site.alternatePhone.replace(/[^0-9+]/g, '')})\n` +
+          `💬 **WhatsApp**: [+91 8626000002](https://wa.me/${site.whatsapp})\n` +
+          `✉️ **Email**: [${site.email}](mailto:${site.email})\n` +
+          `📍 **Office**: ${site.address.join(', ')}\n\n` +
+          `Our team is available 6 days a week with 24/7 support during ongoing live events.`,
+      actions: getContactActions(lang),
+      lang
     };
   }
 
-  // 3. OFFICE LOCATION / ADDRESS / CITY / WHERE ARE YOU LOCATED
-  if (
-    norm.includes('address') ||
-    norm.includes('location') ||
-    norm.includes('where are you') ||
-    norm.includes('office') ||
-    norm.includes('kahan hai') ||
-    norm.includes('kaha hai') ||
-    norm.includes('kahan pe') ||
-    norm.includes('city') ||
-    norm.includes('sector 34') ||
-    norm.includes('chandigarh') ||
-    norm.includes('map')
-  ) {
-    return {
-      text: `📍 **Creativatorss Head Office Address:**\n\n` +
-        `**Creativatorss Event & Production**\n` +
-        `${site.address[0]},\n` +
-        `${site.address[1]}.\n\n` +
-        `✦ **Coverage**: Hum Chandigarh ke alawa **Pan-India (25+ cities)** jaise Delhi NCR, Mumbai, Jaipur, Rajasthan, Punjab aur Himachal me events organize karte hain!`,
-      actions: [
-        {
-          label: '🗺️ Open in Google Maps',
-          type: 'link',
-          href: site.addressMapUrl,
-          icon: 'external'
-        },
-        {
-          label: '💬 Contact for Event at Your City',
-          type: 'whatsapp',
-          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent('Hi, I want to inquire about organizing an event in my city.')}`,
-          icon: 'whatsapp'
-        }
-      ],
-      suggestions: [
-        'Do you organize events outside Chandigarh?',
-        'How early should I book?',
-        'Plan Your Event'
-      ]
-    };
-  }
-
-  // 4. OUTSIDE CHANDIGARH / OTHER CITIES
+  // 4. OUTSIDE CHANDIGARH / PAN-INDIA / OTHER CITIES
   if (
     norm.includes('outside') ||
     norm.includes('other cities') ||
@@ -213,22 +249,78 @@ export function getChatbotResponse(userMessage: string): ChatResponse {
     norm.includes('bahar')
   ) {
     return {
-      text: `Haan, bilkul! **Creativatorss pan-India level par kaam karta hai.** 🇮🇳\n\n` +
-        `Humne ab tak **25+ cities** (Delhi NCR, Mumbai, Chandigarh, Ludhiana, Amritsar, Jaipur, Udaipur, Goa, etc.) me 500+ events successfully execute kiye hain.\n\n` +
-        `Chahe destination wedding ho, corporate conference ho, ya brand tour ho — hamari full production team aapke sheher mein pahunch kar seamless execution karti hai.`,
+      text: lang === 'hi'
+        ? `Haan, bilkul! **Creativatorss pan-India level par kaam karta hai.** 🇮🇳\n\n` +
+          `Humne ab tak **25+ cities** (Delhi NCR, Mumbai, Jaipur, Udaipur, Chandigarh, Punjab, Goa etc.) me 500+ events successfully deliver kiye hain.\n\n` +
+          `Chahe destination wedding ho, corporate conference ho ya brand tour — hamari complete technical & production team aapke city mein pahunch kar setup execute karti hai.`
+        : `Yes, absolutely! **Creativatorss operates Pan-India.** 🇮🇳\n\n` +
+          `We have successfully executed 500+ events across **25+ cities** including Delhi NCR, Mumbai, Jaipur, Udaipur, Chandigarh, Punjab, Goa, and Himachal Pradesh.\n\n` +
+          `Whether it is a luxury destination wedding or a multi-city corporate summit, our complete in-house production crew handles end-to-end execution on-site.`,
       actions: [
         {
-          label: '💬 Discuss Event in Your City',
+          label: lang === 'hi' ? '💬 Apne Shahar ke Liye Baat Karein' : '💬 Inquire for Your City',
           type: 'whatsapp',
-          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent('Hello Creativatorss, I need an event organized in my city.')}`,
+          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(
+            lang === 'hi' ? 'Hi, mujhe Chandigarh ke bahar ek event organize karwana hai.' : 'Hi Creativatorss, I need an event organized in my city.'
+          )}`,
           icon: 'whatsapp'
         },
-        { label: 'View Our Portfolio', type: 'link', href: '/events', icon: 'external' }
-      ]
+        { label: lang === 'hi' ? 'Events Portfolio Dekhein' : 'View Events Portfolio', type: 'link', href: '/events', icon: 'external' }
+      ],
+      lang
     };
   }
 
-  // 5. WEDDING PLANNING / SHAADI / DESTINATION WEDDING
+  // 5. OFFICE LOCATION / ADDRESS / CITY / CHANDIGARH / MAP
+  if (
+    norm.includes('address') ||
+    norm.includes('location') ||
+    norm.includes('where are you') ||
+    norm.includes('office') ||
+    norm.includes('kahan hai') ||
+    norm.includes('kaha hai') ||
+    norm.includes('kahan pe') ||
+    norm.includes('pata') ||
+    norm.includes('sector 34') ||
+    norm.includes('chandigarh') ||
+    norm.includes('map')
+  ) {
+    return {
+      text: lang === 'hi'
+        ? `📍 **Creativatorss Head Office Address:**\n\n` +
+          `**Creativatorss Event & Production**\n` +
+          `${site.address[0]},\n` +
+          `${site.address[1]}.\n\n` +
+          `✦ **Service Coverage**: Hum Chandigarh ke sath-sath **Pan-India (25+ cities)** jaise Delhi NCR, Mumbai, Jaipur, Ludhiana, Amritsar, Rajasthan aur Himachal me events organize karte hain!`
+        : `📍 **Creativatorss Head Office Address:**\n\n` +
+          `**Creativatorss Event & Production**\n` +
+          `${site.address[0]},\n` +
+          `${site.address[1]}.\n\n` +
+          `✦ **Coverage**: In addition to Chandigarh, we operate **Pan-India across 25+ cities** including Delhi NCR, Mumbai, Jaipur, Rajasthan, Punjab, and Himachal Pradesh.`,
+      actions: [
+        {
+          label: lang === 'hi' ? '🗺️ Google Maps Par Dekhein' : '🗺️ Open in Google Maps',
+          type: 'link',
+          href: site.addressMapUrl,
+          icon: 'external'
+        },
+        {
+          label: lang === 'hi' ? '💬 WhatsApp Par Location Maange' : '💬 Get Directions on WhatsApp',
+          type: 'whatsapp',
+          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(
+            lang === 'hi' ? 'Hi Creativatorss, mujhe aapke office aana hai, location guide karein.' : 'Hi Creativatorss, please share your office location details.'
+          )}`,
+          icon: 'whatsapp'
+        }
+      ],
+      suggestions: lang === 'hi'
+        ? ['Kya aap Chandigarh ke bahar event karte hain?', 'Office contact number', 'Event booking kaise karein?']
+        : ['Do you organize events outside Chandigarh?', 'Contact phone number', 'How to book an event?'],
+      lang
+    };
+  }
+
+  // 6. WEDDING PLANNING / SHAADI / DESTINATION WEDDING
   if (
     norm.includes('wedding') ||
     norm.includes('shaadi') ||
@@ -239,34 +331,42 @@ export function getChatbotResponse(userMessage: string): ChatResponse {
     norm.includes('reception') ||
     norm.includes('destination wedding')
   ) {
-    const weddingService = services.find(s => s.slug === 'wedding-planning');
     return {
-      text: `💍 **Complete Luxury Wedding Planning by Creativatorss:**\n\n` +
-        `Hum aapki shaadi ko ek royal aur unforgettable experience banate hain! Hamari services me shamil hain:\n` +
-        `• **Theme & Decor**: Regal stage setups, floral designs, modern entry concepts\n` +
-        `• **Entertainment**: Celebrity singers, live Sufi bands, DJ & sound-light stage\n` +
-        `• **Hospitality & Logistics**: Guest RSVP, VIP management, venue coordination\n` +
-        `• **Pre-Wedding Functions**: Haldi, Mehendi, Cocktail, Sangeet & Reception\n` +
-        `• **Destination Weddings**: Udaipur, Jaipur, Chandigarh, Goa & Himachal setups`,
+      text: lang === 'hi'
+        ? `💍 **Creativatorss Luxury Wedding Planning Services:**\n\n` +
+          `Hum shaadiyon ko ek royal aur unforgettable experience banate hain:\n` +
+          `• **Theme & Regal Decor**: Stage setup, luxury floral styling, signature entry concepts\n` +
+          `• **Entertainment**: Celebrity singers, Sufi live bands, DJ with concert sound & lights\n` +
+          `• **Hospitality & Logistics**: Guest RSVP, airport transfers, VIP hospitality, room hampers\n` +
+          `• **Pre-Wedding Functions**: Haldi, Mehendi, Sangeet night, Cocktail & Grand Reception\n` +
+          `• **Destination Weddings**: Udaipur, Jaipur, Chandigarh, Goa, Jim Corbett & Himachal.`
+        : `💍 **Luxury Wedding Planning by Creativatorss:**\n\n` +
+          `We craft bespoke, royal weddings with seamless execution:\n` +
+          `• **Theme & Floral Decor**: Regal stage setups, custom floral arches, immersive guest pathways\n` +
+          `• **Live Entertainment**: Bollywood & Punjabi singers, Sufi musicians, top club DJs\n` +
+          `• **Hospitality & Coordination**: Guest RSVP, VIP escorting, logistics & itinerary management\n` +
+          `• **All Functions**: Haldi, Mehendi, Sangeet choreography, Cocktail & Grand Reception\n` +
+          `• **Destination Weddings**: Udaipur, Jaipur, Chandigarh, Goa, and Himachal palaces.`,
       actions: [
-        { label: 'View Wedding Details', type: 'link', href: '/services/wedding-planning', icon: 'external' },
+        { label: lang === 'hi' ? 'Wedding Page Dekhein' : 'View Wedding Details', type: 'link', href: '/services/wedding-planning', icon: 'external' },
         {
-          label: '💬 Get Wedding Quote on WhatsApp',
+          label: lang === 'hi' ? '💬 Wedding Quote Maange' : '💬 Get Wedding Quote on WhatsApp',
           type: 'whatsapp',
-          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent('Hi Creativatorss, I would like to get a quote and details for Wedding Planning.')}`,
+          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(
+            lang === 'hi' ? 'Hi Creativatorss, mujhe wedding planning ki quotation aur details chahiye.' : 'Hi Creativatorss, I want to get a quote for Wedding Planning.'
+          )}`,
           icon: 'whatsapp'
         },
-        { label: '📋 Fill Wedding Inquiry', type: 'link', href: '/contact', icon: 'calendar' }
+        { label: lang === 'hi' ? '📋 Wedding Enquiry Form' : '📋 Fill Wedding Inquiry', type: 'link', href: '/contact', icon: 'calendar' }
       ],
-      suggestions: [
-        'How early should I book for a wedding?',
-        'Celebrity and artist booking for wedding',
-        'Get a custom quote'
-      ]
+      suggestions: lang === 'hi'
+        ? ['Wedding ke liye kitne din pehle book karein?', 'Celebrity singer booking for wedding', 'Wedding pricing aur packages']
+        : ['How early should I book for a wedding?', 'Celebrity booking for wedding', 'Get custom wedding quote'],
+      lang
     };
   }
 
-  // 6. CORPORATE EVENTS / CONFERENCES / ANNUAL MEETS
+  // 7. CORPORATE EVENTS / CONFERENCES / ANNUAL MEETS
   if (
     norm.includes('corporate') ||
     norm.includes('conference') ||
@@ -278,31 +378,39 @@ export function getChatbotResponse(userMessage: string): ChatResponse {
     norm.includes('business event')
   ) {
     return {
-      text: `🏢 **Corporate Events & Production Solutions:**\n\n` +
-        `Creativatorss 100+ national & multinational brands ke liye corporate events manage kar chuka hai.\n\n` +
-        `• **Conferences & Summits**: High-tech LED walls, synchronized audio-visuals, stage trussing\n` +
-        `• **Annual Meets & Award Galas**: Premium stage setup, award distribution choreography, gala dinners\n` +
-        `• **Brand Summits & Dealer Meets**: End-to-end event conceptualization, keynote presentation tech\n` +
-        `• **Corporate Entertainment**: Standup comedians, emcees, live artists`,
+      text: lang === 'hi'
+        ? `🏢 **Corporate Events & Production Solutions:**\n\n` +
+          `Creativatorss 100+ national aur multinational brands ke corporate events manage kar chuka hai:\n` +
+          `• **Conferences & Summits**: Seamless P2/P3 LED walls, multi-mic podium setups, sound & AV\n` +
+          `• **Annual Meets & Award Galas**: Premium stage trussing, trophy reveal choreography, thematic dinner\n` +
+          `• **Dealer Meets & Brand Summits**: Interactive keynote presentations, registration desks\n` +
+          `• **Corporate Entertainment**: Professional emcees, stand-up comedians, live bands.`
+        : `🏢 **Corporate Event Planning & Production:**\n\n` +
+          `Creativatorss has delivered high-impact corporate experiences for 100+ brands:\n` +
+          `• **Conferences & Summits**: High-definition LED screens, synchronized line arrays, webcast setup\n` +
+          `• **Annual Meets & Award Galas**: Custom staging, synchronized lighting, trophy reveal choreography\n` +
+          `• **Dealer Meets & Product Summits**: Complete hospitality, registration, and presentation tech\n` +
+          `• **Entertainment**: Renowned emcees, standup comics, and live musical acts.`,
       actions: [
-        { label: 'View Corporate Services', type: 'link', href: '/services/corporate-events', icon: 'external' },
+        { label: lang === 'hi' ? 'Corporate Service Page' : 'Corporate Events Page', type: 'link', href: '/services/corporate-events', icon: 'external' },
         {
-          label: '💬 Corporate Event Consultation',
+          label: lang === 'hi' ? '💬 Corporate Proposal Maange' : '💬 Request Corporate Proposal',
           type: 'whatsapp',
-          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent('Hi Creativatorss, I want to discuss a Corporate Event / Conference requirement.')}`,
+          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(
+            lang === 'hi' ? 'Hi Creativatorss, mujhe Corporate Event / Conference organize karwana hai.' : 'Hi Creativatorss, I want to discuss a Corporate Event requirement.'
+          )}`,
           icon: 'whatsapp'
         },
-        { label: '📋 Request Corporate Proposal', type: 'link', href: '/contact', icon: 'calendar' }
+        { label: lang === 'hi' ? '📋 RFP / Form Bharein' : '📋 Submit RFP Form', type: 'link', href: '/contact', icon: 'calendar' }
       ],
-      suggestions: [
-        'Product Launches',
-        'How early should we book?',
-        'Contact Our Corporate Team'
-      ]
+      suggestions: lang === 'hi'
+        ? ['Product launches setup', 'Corporate events kitne din pehle book karein?', 'Contact details']
+        : ['Product Launches setup', 'How early to book corporate event?', 'Official contact numbers'],
+      lang
     };
   }
 
-  // 7. CELEBRITY & ARTIST MANAGEMENT
+  // 8. CELEBRITY & ARTIST MANAGEMENT
   if (
     norm.includes('celebrity') ||
     norm.includes('celeb') ||
@@ -316,31 +424,36 @@ export function getChatbotResponse(userMessage: string): ChatResponse {
     norm.includes('comedian')
   ) {
     return {
-      text: `🌟 **Celebrity & Artist Management:**\n\n` +
-        `Creativatorss ka industry ke top celebrities aur performing artists ke sath direct network hai:\n\n` +
-        `• **Bollywood Celebrities & TV Stars**: Ribbon cutting, brand endorsement, chief guest appearances\n` +
-        `• **Live Singers & Bands**: Bollywood, Punjabi singers, Sufi musicians, rock bands\n` +
-        `• **DJs & Emcees**: Top club DJs, energetic anchors for weddings & corporate summits\n` +
-        `• **VIP Security & Protocols**: Green room management, vanity vans, backstage security & rider management`,
+      text: lang === 'hi'
+        ? `🌟 **Celebrity & Artist Management by Creativatorss:**\n\n` +
+          `Creativatorss ke paas industry ke top artists aur celebrities ka direct access hai:\n` +
+          `• **Bollywood & Punjabi Singers**: Live concert performances for weddings & college fests\n` +
+          `• **Celebrity Appearances**: Chief guest appearances, store launches, brand endorsements\n` +
+          `• **Live Bands & DJs**: Sufi fusion bands, rock bands, high-energy party DJs\n` +
+          `• **VIP Protocol**: Green rooms, vanity vans, bouncers & rider management.`
+        : `🌟 **Celebrity & Artist Management:**\n\n` +
+          `We provide direct artist coordination, talent booking, and stage rider management:\n` +
+          `• **Bollywood & Punjabi Singers**: Live stage performances for weddings, corporate, and galas\n` +
+          `• **Celebrity Appearances**: Star ribbon-cutting, brand inaugurations, guest appearances\n` +
+          `• **Live Bands & Top DJs**: Sufi, Bollywood fusion, rock bands, and wedding DJs\n` +
+          `• **Security & Hospitality**: VIP green rooms, bouncers, transit, and rider fulfillment.`,
       actions: [
-        { label: 'Artist Management', type: 'link', href: '/services/artist-management', icon: 'external' },
-        { label: 'Celebrity Management', type: 'link', href: '/services/celebrity-management', icon: 'external' },
+        { label: lang === 'hi' ? 'Artist Management' : 'Artist Management', type: 'link', href: '/services/artist-management', icon: 'external' },
+        { label: lang === 'hi' ? 'Celebrity Management' : 'Celebrity Management', type: 'link', href: '/services/celebrity-management', icon: 'external' },
         {
-          label: '💬 Inquire Artist Availability',
+          label: lang === 'hi' ? '💬 Artist Availability Puchein' : '💬 Inquire Artist Availability',
           type: 'whatsapp',
-          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent('Hi Creativatorss, I want to inquire about booking an artist / celebrity for my event.')}`,
+          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(
+            lang === 'hi' ? 'Hi Creativatorss, mujhe event ke liye Artist / Celebrity booking ki availability chahiye.' : 'Hi Creativatorss, I want to check availability for artist / celebrity booking.'
+          )}`,
           icon: 'whatsapp'
         }
       ],
-      suggestions: [
-        'Fashion Show Production',
-        'Wedding Planning',
-        'Get a Quote'
-      ]
+      lang
     };
   }
 
-  // 8. FASHION SHOW & MODEL MANAGEMENT
+  // 9. FASHION SHOW & MODEL MANAGEMENT
   if (
     norm.includes('fashion') ||
     norm.includes('fashion show') ||
@@ -351,26 +464,36 @@ export function getChatbotResponse(userMessage: string): ChatResponse {
     norm.includes('models')
   ) {
     return {
-      text: `👠 **Fashion Show Production & Model Management:**\n\n` +
-        `Fashion shows are one of our flagship expertise!\n\n` +
-        `• **Runway & Stage Architecture**: Custom ramp design, runway lighting, LED backdrops\n` +
-        `• **Model Casting & Coordination**: Professional male & female runway models\n` +
-        `• **Backstage Management**: Makeup artists, stylists, quick-change choreography\n` +
-        `• **Show Direction**: Music scoring, choreography, show direction & media coverage`,
+      text: lang === 'hi'
+        ? `👠 **Fashion Show Production & Model Management:**\n\n` +
+          `Creativatorss India ke leading couture aur fashion runways produce karta hai:\n` +
+          `• **Ramp & Staging**: Custom elevated runway, ramp lighting, LED backdrop\n` +
+          `• **Model Management**: Professional male & female runway models casting\n` +
+          `• **Backstage Operations**: Makeup teams, hair stylists, rapid change sequencing\n` +
+          `• **Show Direction**: Music track curation, show choreographer, photography & video.`
+        : `👠 **Fashion Show Production & Model Management:**\n\n` +
+          `We create premier runway experiences from concept to the final bow:\n` +
+          `• **Runway Staging**: Custom runway architecture, calibrated fashion lighting, LED screens\n` +
+          `• **Model Casting**: Experienced male & female models for couture and commercial shows\n` +
+          `• **Backstage Management**: Makeup artists, backstage directors, cue choreography\n` +
+          `• **Creative Direction**: Music mixing, runway pacing, and HD visual coverage.`,
       actions: [
-        { label: 'Fashion Show Service', type: 'link', href: '/services/fashion-show', icon: 'external' },
-        { label: 'Model Management', type: 'link', href: '/services/model-management', icon: 'external' },
+        { label: lang === 'hi' ? 'Fashion Show Service' : 'Fashion Show Service', type: 'link', href: '/services/fashion-show', icon: 'external' },
+        { label: lang === 'hi' ? 'Model Management' : 'Model Management', type: 'link', href: '/services/model-management', icon: 'external' },
         {
-          label: '💬 Discuss Fashion Production',
+          label: lang === 'hi' ? '💬 Fashion Show Plan Karein' : '💬 Discuss Runway Production',
           type: 'whatsapp',
-          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent('Hi Creativatorss, I am looking for Fashion Show production / Model management.')}`,
+          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(
+            lang === 'hi' ? 'Hi Creativatorss, mujhe Fashion Show / Model Management ke baare me baat karni hai.' : 'Hi Creativatorss, I want to discuss Fashion Show production.'
+          )}`,
           icon: 'whatsapp'
         }
-      ]
+      ],
+      lang
     };
   }
 
-  // 9. INFLUENCER SHOOT & BRAND SHOOT & PRODUCT LAUNCHES
+  // 10. INFLUENCER SHOOTS, BRAND SHOOTS, PRODUCT LAUNCHES & ACTIVATIONS
   if (
     norm.includes('influencer') ||
     norm.includes('brand shoot') ||
@@ -382,26 +505,36 @@ export function getChatbotResponse(userMessage: string): ChatResponse {
     norm.includes('activation')
   ) {
     return {
-      text: `📸 **Brand Shoots, Influencer Campaigns & Product Launches:**\n\n` +
-        `Creativatorss brands ko visual storytelling ke zariye amplify karta hai:\n\n` +
-        `• **Influencer Shoots**: High-engagement branded content, creator collaborations, studio & outdoor sets\n` +
-        `• **Brand Shoots**: Product photography, campaign lookbooks, commercial ad films\n` +
-        `• **Product Launches**: Dramatic stage unveilings, 3D AV projections, influencer presence, media buzz\n` +
-        `• **Promotional Activations**: Mall activations, on-ground BTL experiences, live kiosks`,
+      text: lang === 'hi'
+        ? `📸 **Brand Shoots, Influencer Campaigns & Product Launches:**\n\n` +
+          `Hamari creative production team brands ko powerful visual storytelling deti hai:\n` +
+          `• **Influencer Shoots**: High-engagement branded content, top creators coordination, studio/outdoor sets\n` +
+          `• **Brand Shoots**: Professional commercial photography, ad campaigns, lookbooks\n` +
+          `• **Product Launches**: Dramatic unveilings, 3D hologram/LED reveals, media press coverage\n` +
+          `• **Promotional Activations**: Mall activations, roadshows, BTL consumer engagements.`
+        : `📸 **Brand Shoots, Influencer Shoots & Product Launches:**\n\n` +
+          `We combine creative direction and production power for brands:\n` +
+          `• **Influencer Shoots**: Curated creator collaborations, studio & outdoor sets, branded content\n` +
+          `• **Brand Shoots**: High-fashion product photography, lookbooks, campaign visuals\n` +
+          `• **Product Launches**: High-octane product reveal moments, synchronized light and AV\n` +
+          `• **Promotional Activations**: Mall activations, on-ground BTL engagements, and roadshows.`,
       actions: [
-        { label: 'Influencer Shoots', type: 'link', href: '/services/influencer-shoot', icon: 'external' },
-        { label: 'Product Launches', type: 'link', href: '/services/product-launches', icon: 'external' },
+        { label: lang === 'hi' ? 'Influencer Shoots' : 'Influencer Shoots', type: 'link', href: '/services/influencer-shoot', icon: 'external' },
+        { label: lang === 'hi' ? 'Product Launches' : 'Product Launches', type: 'link', href: '/services/product-launches', icon: 'external' },
         {
-          label: '💬 Plan a Shoot or Launch',
+          label: lang === 'hi' ? '💬 Shoot / Launch Discuss Karein' : '💬 Plan a Shoot / Launch',
           type: 'whatsapp',
-          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent('Hi Creativatorss, I want to discuss a Brand Shoot / Influencer Shoot / Product Launch.')}`,
+          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(
+            lang === 'hi' ? 'Hi Creativatorss, mujhe Brand Shoot / Influencer Shoot / Product Launch plan karna hai.' : 'Hi Creativatorss, I want to discuss a Brand Shoot / Product Launch.'
+          )}`,
           icon: 'whatsapp'
         }
-      ]
+      ],
+      lang
     };
   }
 
-  // 10. ALL SERVICES SUMMARY
+  // 11. ALL SERVICES SUMMARY
   if (
     norm.includes('services') ||
     norm.includes('service') ||
@@ -413,36 +546,48 @@ export function getChatbotResponse(userMessage: string): ChatResponse {
     norm.includes('kaam')
   ) {
     return {
-      text: `Creativatorss ek **Full-Service Event & Production Company** hai. Hamari 10 pramukh services hain:\n\n` +
-        `1. 📸 **Influencer Shoot** - Branded content & influencer shoots\n` +
-        `2. 👠 **Fashion Show** - Complete runway & concept production\n` +
-        `3. 🎬 **Brand Shoot** - High-impact commercial brand photography\n` +
-        `4. 🚀 **Product Launches** - Unveilings & stage experiences\n` +
-        `5. 🎯 **Promotional Activities** - Mall activations & BTL campaigns\n` +
-        `6. 🏢 **Corporate Events** - Conferences, annual meets & galas\n` +
-        `7. 💃 **Model Management** - Professional casting & coordination\n` +
-        `8. 🎤 **Artist Management** - Live singers, bands & DJs\n` +
-        `9. 🌟 **Celebrity Management** - Star appearances & VIP handling\n` +
-        `10. 💍 **Wedding Planning** - Luxury destination & theme weddings`,
+      text: lang === 'hi'
+        ? `Creativatorss ek **Full-Service Event & Production Company** hai. Hamari 10 main services hain:\n\n` +
+          `1. 📸 **Influencer Shoot** - Branded content aur creator shoots\n` +
+          `2. 👠 **Fashion Show** - Runway staging, models aur choreography\n` +
+          `3. 🎬 **Brand Shoot** - High-impact commercial brand photography\n` +
+          `4. 🚀 **Product Launches** - Grand stage reveals aur AV experiences\n` +
+          `5. 🎯 **Promotional Activities** - Mall activations aur BTL campaigns\n` +
+          `6. 🏢 **Corporate Events** - Conferences, dealer meets aur annual galas\n` +
+          `7. 💃 **Model Management** - Runway aur commercial model casting\n` +
+          `8. 🎤 **Artist Management** - Live singers, Sufi bands aur DJs\n` +
+          `9. 🌟 **Celebrity Management** - Star appearances aur VIP security\n` +
+          `10. 💍 **Wedding Planning** - Luxury destination aur royal theme weddings`
+        : `Creativatorss is a **Full-Service Event & Brand Production Company**. Here are our 10 core capabilities:\n\n` +
+          `1. 📸 **Influencer Shoot** - Creative content & creator production\n` +
+          `2. 👠 **Fashion Show** - Complete runway & couture stage production\n` +
+          `3. 🎬 **Brand Shoot** - High-impact product & lookbook photography\n` +
+          `4. 🚀 **Product Launches** - Unveilings, 3D AV & memorable launch moments\n` +
+          `5. 🎯 **Promotional Activities** - Mall activations & BTL brand experiences\n` +
+          `6. 🏢 **Corporate Events** - Conferences, seminars & annual galas\n` +
+          `7. 💃 **Model Management** - Professional casting & talent coordination\n` +
+          `8. 🎤 **Artist Management** - Live singers, bands & DJ bookings\n` +
+          `9. 🌟 **Celebrity Management** - Star appearances & VIP management\n` +
+          `10. 💍 **Wedding Planning** - Bespoke luxury & destination weddings`,
       actions: [
-        { label: 'View All Services Page', type: 'link', href: '/services', icon: 'external' },
+        { label: lang === 'hi' ? 'Services Page Dekhein' : 'View All Services Page', type: 'link', href: '/services', icon: 'external' },
         {
-          label: '💬 Chat on WhatsApp',
+          label: lang === 'hi' ? '💬 WhatsApp Par Baat Karein' : '💬 Chat on WhatsApp',
           type: 'whatsapp',
-          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent('Hi Creativatorss, I want to learn more about your services.')}`,
+          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(
+            lang === 'hi' ? 'Hi Creativatorss, mujhe aapki services ke baare mein jaanna hai.' : 'Hi Creativatorss, I want to learn more about your services.'
+          )}`,
           icon: 'whatsapp'
         }
       ],
-      suggestions: [
-        'Wedding Planning',
-        'Corporate Events',
-        'Celebrity Booking',
-        'How to get a quote?'
-      ]
+      suggestions: lang === 'hi'
+        ? ['Wedding planning ki jankari', 'Corporate events details', 'Celebrity booking', 'Event ka quote kaise lein?']
+        : ['Wedding Planning details', 'Corporate Events', 'Celebrity Booking', 'How to get a quote?'],
+      lang
     };
   }
 
-  // 11. PRICING / COST / CHARGES / BUDGET / QUOTATION
+  // 12. PRICING / COST / CHARGES / BUDGET / QUOTATION
   if (
     norm.includes('price') ||
     norm.includes('pricing') ||
@@ -457,32 +602,38 @@ export function getChatbotResponse(userMessage: string): ChatResponse {
     norm.includes('fees')
   ) {
     return {
-      text: `💰 **Event Pricing & Quotation:**\n\n` +
-        `Creativatorss har event ko client ke specific vision, scale, location aur guest count ke anusaar customize karta hai. Isiliye koi fixed ek package nahi hota, balki hum **aapke budget ke hisaab se best customized proposal** tayyar karte hain.\n\n` +
-        `Quotation tayyar karne ke liye hume yeh jankari chahiye hoti hai:\n` +
-        `1. Event Type (Wedding, Corporate, Shoot, Fashion Show, etc.)\n` +
-        `2. Tentative Date & Location\n` +
-        `3. Expected Guest Count ya Scale\n\n` +
-        `Aap 2 minute me WhatsApp par direct baat karke instant estimate le sakte hain!`,
+      text: lang === 'hi'
+        ? `💰 **Event Pricing & Quotation Details:**\n\n` +
+          `Creativatorss har event ko client ke specific vision, location, guest count aur scale ke hisaab se customize karta hai. Isiliye koi ek fixed rate nahi hota, balki hum **aapke budget ke hisaab se best customized proposal** banate hain.\n\n` +
+          `Estimate ke liye bas 3 cheezein zaroori hain:\n` +
+          `1. Event Type (Wedding, Corporate, Fashion Show, Shoot, etc.)\n` +
+          `2. Tentative Date & Location / City\n` +
+          `3. Expected Guest Count ya Scope\n\n` +
+          `Aap WhatsApp par 2 minute me direct baat karke instant quotation le sakte hain!`
+        : `💰 **Pricing & Quotations at Creativatorss:**\n\n` +
+          `Because every event has a unique scale, venue, guest count, and technical requirement, we don't have a rigid one-size-fits-all package. Instead, we prepare **customized proposals tailored to your budget and vision**.\n\n` +
+          `To get an accurate estimate, simply share:\n` +
+          `1. Event Type (Wedding, Corporate Summit, Fashion Show, Shoot, etc.)\n` +
+          `2. Date & Venue / City\n` +
+          `3. Expected Guest Count or Technical Scope\n\n` +
+          `You can get an instant estimate within minutes on WhatsApp!`,
       actions: [
         {
-          label: '💬 Get Free Instant Quote on WhatsApp',
+          label: lang === 'hi' ? '💬 WhatsApp Par Instant Quote Lein' : '💬 Get Instant Quote on WhatsApp',
           type: 'whatsapp',
-          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent('Hi Creativatorss, I would like to get a customized quote for my event.')}`,
+          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(
+            lang === 'hi' ? 'Hi Creativatorss, mujhe apne event ke liye customized quotation chahiye.' : 'Hi Creativatorss, I would like to get a customized quote for my event.'
+          )}`,
           icon: 'whatsapp'
         },
-        { label: '📋 Fill Event Enquiry Form', type: 'link', href: '/contact', icon: 'calendar' },
-        { label: `📞 Call Us Directly (${site.phone})`, type: 'call', href: `tel:${site.phone.replace(/[^0-9+]/g, '')}`, icon: 'phone' }
+        { label: lang === 'hi' ? '📋 Enquiry Form Bharein' : '📋 Fill Event Form', type: 'link', href: '/contact', icon: 'calendar' },
+        { label: lang === 'hi' ? `📞 Call Karein (${site.phone})` : `📞 Call Directly (${site.phone})`, type: 'call', href: `tel:${site.phone.replace(/[^0-9+]/g, '')}`, icon: 'phone' }
       ],
-      suggestions: [
-        'How early should I book?',
-        'Tell me about Corporate Events',
-        'Tell me about Wedding Planning'
-      ]
+      lang
     };
   }
 
-  // 12. HOW TO BOOK / PROCESS / TIMELINE / HOW EARLY
+  // 13. HOW TO BOOK / PROCESS / TIMELINE / HOW EARLY
   if (
     norm.includes('how to book') ||
     norm.includes('book kaise') ||
@@ -495,28 +646,41 @@ export function getChatbotResponse(userMessage: string): ChatResponse {
     norm.includes('timeline')
   ) {
     return {
-      text: `📋 **Humare Kaam Karne Ka 5-Step Process:**\n\n` +
-        `1. **Discover**: Aapki requirement, vision, timeline aur budget ko samajhna.\n` +
-        `2. **Concept**: Creative theme, stage design aur flow design karna.\n` +
-        `3. **Plan**: Detailed logistics, vendor timeline aur production schedule banana.\n` +
-        `4. **Produce**: Stage, sound, lights, artists aur on-ground execution setup karna.\n` +
-        `5. **Deliver**: Flawless, memorable live experience deliver karna.\n\n` +
-        `✦ **Kitna pehle book karein?**\n` +
-        `• Corporate / Shoots: Kam se kam **2 se 4 hafte pehle**\n` +
-        `• Weddings / Fashion Shows / Celebrity: Kam se kam **1 se 3 mahine pehle** taaki best dates aur artists confirm ho sakein.`,
+      text: lang === 'hi'
+        ? `📋 **Humare Kaam Karne Ka 5-Step Process:**\n\n` +
+          `1. **Discover**: Aapki event requirements, date, budget aur expectations ko samajhna.\n` +
+          `2. **Concept**: Creative theme, 3D stage layout aur event flow design karna.\n` +
+          `3. **Plan**: Detailed logistics, vendor timeline aur production schedule banana.\n` +
+          `4. **Produce**: Stage, sound, lights, artists aur on-ground operational setup.\n` +
+          `5. **Deliver**: Seamless execution aur unforgettable live experience.\n\n` +
+          `✦ **Kitne din pehle book karein?**\n` +
+          `• Corporate & Shoots: Kam se kam **2-4 hafte pehle**\n` +
+          `• Weddings & Major Fashion Shows: Kam se kam **1-3 mahine pehle** taaki best dates aur artists lock ho sakein.`
+        : `📋 **Our 5-Step Event Production Process:**\n\n` +
+          `1. **Discover**: Understand your vision, objectives, date, and budget.\n` +
+          `2. **Concept**: Develop creative themes, 3D stage architecture, and experiential flow.\n` +
+          `3. **Plan**: Build detailed logistics, artist timelines, and operational runsheets.\n` +
+          `4. **Produce**: Stage engineering, line arrays, LED backdrops, and talent management.\n` +
+          `5. **Deliver**: Flawless live execution with complete on-site management.\n\n` +
+          `✦ **How early should you book?**\n` +
+          `• Corporate & Brand Shoots: Ideally **2 to 4 weeks** in advance.\n` +
+          `• Weddings & Celebrity Shows: Ideally **1 to 3 months** in advance to secure top dates and venues.`,
       actions: [
         {
-          label: '💬 Start Planning on WhatsApp',
+          label: lang === 'hi' ? '💬 WhatsApp Par Booking Discuss Karein' : '💬 Start Booking on WhatsApp',
           type: 'whatsapp',
-          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent('Hi Creativatorss, I want to book / plan an upcoming event.')}`,
+          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(
+            lang === 'hi' ? 'Hi Creativatorss, mujhe upcoming event book karna hai.' : 'Hi Creativatorss, I want to book an upcoming event.'
+          )}`,
           icon: 'whatsapp'
         },
-        { label: '📋 Book via Form', type: 'link', href: '/contact', icon: 'calendar' }
-      ]
+        { label: lang === 'hi' ? '📋 Contact Form Bharein' : '📋 Fill Booking Form', type: 'link', href: '/contact', icon: 'calendar' }
+      ],
+      lang
     };
   }
 
-  // 13. ABOUT / EXPERIENCE / CREDIBILITY / FOUNDER / STATS
+  // 14. ABOUT / EXPERIENCE / CREDIBILITY / TRACK RECORD / STATS
   if (
     norm.includes('about') ||
     norm.includes('who are you') ||
@@ -531,28 +695,38 @@ export function getChatbotResponse(userMessage: string): ChatResponse {
     norm.includes('stats')
   ) {
     return {
-      text: `✨ **About Creativatorss Event & Production:**\n\n` +
-        `Creativatorss ek premier full-service Event & Brand Management company hai jo concept-to-completion event solutions provide karti hai.\n\n` +
-        `🏆 **Hamara Track Record:**\n` +
-        `• **10+ Saal** ka solid experience\n` +
-        `• **500+ Safal Events** aur experiences\n` +
-        `• **100+ Top Brands** aur Corporate Projects\n` +
-        `• **25+ Cities** me pan-India execution presence\n\n` +
-        `Hamara motto hai: *"Creativity Meets Flawless Execution."*`,
+      text: lang === 'hi'
+        ? `✨ **Creativatorss Event & Production ke baare mein:**\n\n` +
+          `Creativatorss ek premier full-service Event & Brand Management company hai jo concept-to-completion event solutions deti hai.\n\n` +
+          `🏆 **Hamara Track Record:**\n` +
+          `• **10+ Saal** ka solid experience\n` +
+          `• **500+ Safal Events** aur experiences\n` +
+          `• **100+ Top Brands** aur Corporate Projects\n` +
+          `• **25+ Cities** me pan-India execution\n\n` +
+          `Hamara motto hai: *"Creativity Meets Flawless Execution."*`
+        : `✨ **About Creativatorss Event & Production:**\n\n` +
+          `Creativatorss is a premier full-service Event and Brand Management company dedicated to delivering memorable live experiences.\n\n` +
+          `🏆 **Our Track Record:**\n` +
+          `• **10+ Years** of professional event experience\n` +
+          `• **500+ Successfully Executed** events & experiences\n` +
+          `• **100+ Leading Brands** & corporate partners\n` +
+          `• **25+ Cities** covered across India\n\n` +
+          `Our guiding principle: *"Creativity Meets Flawless Execution."*`,
       actions: [
-        { label: 'Read Our Full Story', type: 'link', href: '/about', icon: 'external' },
-        { label: 'Explore Our Work', type: 'link', href: '/events', icon: 'external' },
+        { label: lang === 'hi' ? 'Hamari Story Padhein' : 'Read Our Full Story', type: 'link', href: '/about', icon: 'external' },
+        { label: lang === 'hi' ? 'Hamara Kaam Dekhein' : 'Explore Our Work', type: 'link', href: '/events', icon: 'external' },
         {
-          label: '💬 Chat with Us',
+          label: lang === 'hi' ? '💬 Team Se Baat Karein' : '💬 Chat with Our Team',
           type: 'whatsapp',
           href: `https://wa.me/${site.whatsapp}`,
           icon: 'whatsapp'
         }
-      ]
+      ],
+      lang
     };
   }
 
-  // 14. PORTFOLIO / GALLERY / PAST EVENTS / PHOTOS
+  // 15. PORTFOLIO / GALLERY / PAST EVENTS / PHOTOS
   if (
     norm.includes('portfolio') ||
     norm.includes('gallery') ||
@@ -564,28 +738,40 @@ export function getChatbotResponse(userMessage: string): ChatResponse {
     norm.includes('dikhao')
   ) {
     return {
-      text: `🎨 **Creativatorss Portfolio & Moments:**\n\n` +
-        `Humne India ke kai bade events execute kiye hain jaise:\n` +
-        `• **Fashion Forward** (Chandigarh) - Runway & couture production\n` +
-        `• **The Product Reveal** (Delhi) - Immersive launch stage\n` +
-        `• **Annual Momentum** - High-energy corporate summit\n` +
-        `• **Creator Sessions** (Mumbai) - Influencer brand shoots\n` +
-        `• **Golden Hour** (Chandigarh) - Grand royal wedding\n\n` +
-        `Aap hamari website par pictures aur videos dekh sakte hain:`,
+      text: lang === 'hi'
+        ? `🎨 **Creativatorss Portfolio & Moments:**\n\n` +
+          `Humne India ke kai bade events execute kiye hain jaise:\n` +
+          `• **Fashion Forward** (Chandigarh) - Runway couture production\n` +
+          `• **The Product Reveal** (Delhi) - Immersive stage unveil\n` +
+          `• **Annual Momentum** - High-energy corporate summit\n` +
+          `• **Creator Sessions** (Mumbai) - Influencer brand shoots\n` +
+          `• **Golden Hour** (Chandigarh) - Grand royal wedding\n\n` +
+          `Website par aap photos aur videos explore kar sakte hain:`
+        : `🎨 **Creativatorss Portfolio & Moments:**\n\n` +
+          `We have orchestrated premier productions across India:\n` +
+          `• **Fashion Forward** (Chandigarh) - High-fashion runway production\n` +
+          `• **The Product Reveal** (Delhi) - Immersive brand unveil\n` +
+          `• **Annual Momentum** - High-energy corporate summit\n` +
+          `• **Creator Sessions** (Mumbai) - Branded influencer shoot\n` +
+          `• **Golden Hour** (Chandigarh) - Grand destination wedding\n\n` +
+          `Explore our visual showcases on the website:`,
       actions: [
-        { label: 'Explore Gallery', type: 'link', href: '/gallery', icon: 'external' },
-        { label: 'View Featured Events', type: 'link', href: '/events', icon: 'external' },
+        { label: lang === 'hi' ? 'Gallery Dekhein' : 'Explore Gallery', type: 'link', href: '/gallery', icon: 'external' },
+        { label: lang === 'hi' ? 'Events Portfolio' : 'View Events Portfolio', type: 'link', href: '/events', icon: 'external' },
         {
-          label: '💬 Ask for Event Case Studies',
+          label: lang === 'hi' ? '💬 Work Samples Maange' : '💬 Request Portfolio on WhatsApp',
           type: 'whatsapp',
-          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent('Hi Creativatorss, please share your recent portfolio / work samples with me.')}`,
+          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(
+            lang === 'hi' ? 'Hi Creativatorss, mujhe aapke recent events ke samples aur videos dekhne hain.' : 'Hi Creativatorss, please share recent portfolio samples and videos.'
+          )}`,
           icon: 'whatsapp'
         }
-      ]
+      ],
+      lang
     };
   }
 
-  // 15. STAGE / PRODUCTION / SOUND / LIGHTS / AV
+  // 16. STAGE / PRODUCTION / SOUND / LIGHTS / AV
   if (
     norm.includes('stage') ||
     norm.includes('light') ||
@@ -597,60 +783,85 @@ export function getChatbotResponse(userMessage: string): ChatResponse {
     norm.includes('setup')
   ) {
     return {
-      text: `🔊 **In-House Technical Production Capabilities:**\n\n` +
-        `Creativatorss ke paas stage, sound aur lighting ka complete production setup hai:\n\n` +
-        `• **Stage Engineering**: Custom 3D stage backdrops, multi-tier runways, hydraulic reveals\n` +
-        `• **Visuals**: Seamless high-resolution P2/P3 LED walls, visual mapping & animations\n` +
-        `• **Audio Systems**: Concert-grade line array sound systems (JBL, Meyer, RCF, etc.)\n` +
-        `• **Intelligent Lighting**: Sharpies, washes, laser shows, cold pyrotechnics & CO2 jets\n` +
-        `• **Power & Backup**: Heavy DG gensets & technical backup operators on-site`,
+      text: lang === 'hi'
+        ? `🔊 **In-House Technical & Stage Production Setup:**\n\n` +
+          `Creativatorss ke paas stage, sound aur lighting ka complete in-house setup hai:\n` +
+          `• **Stage Engineering**: Custom 3D stage backdrops, multi-tier runways, hydraulic reveals\n` +
+          `• **Visual Screens**: High-resolution P2/P3 indoor & outdoor LED walls\n` +
+          `• **Concert Audio**: Professional line array sound systems (JBL, Meyer, RCF)\n` +
+          `• **Intelligent Lighting**: Sharpies, beams, washes, lasers, cold pyrotechnics & CO2 jets\n` +
+          `• **Power & Backup**: Heavy DG gensets aur on-site technical operators.`
+        : `🔊 **In-House Technical & Stage Production:**\n\n` +
+          `Creativatorss manages complete technical audio-visual and stage infrastructure:\n` +
+          `• **Stage Engineering**: Custom 3D stage sets, multi-tier runways, and hydraulic reveals\n` +
+          `• **Visual Screens**: High-resolution P2/P3 indoor & outdoor LED display walls\n` +
+          `• **Concert Audio**: Line array sound systems, digital mixers, and stage monitors\n` +
+          `• **Intelligent Lighting**: Sharpies, washes, lasers, cold pyros, and CO2 jets\n` +
+          `• **Backup Power**: Heavy DG gensets with certified on-site technical engineers.`,
       actions: [
         {
-          label: '💬 Inquire Production Setup',
+          label: lang === 'hi' ? '💬 Production Setup Discuss Karein' : '💬 Inquire Production Setup',
           type: 'whatsapp',
-          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent('Hi Creativatorss, I want to inquire about Stage, Sound and Lighting production setup.')}`,
+          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(
+            lang === 'hi' ? 'Hi Creativatorss, mujhe stage, sound aur lighting setup ki jankari chahiye.' : 'Hi Creativatorss, I want to inquire about stage, sound, and lighting production setup.'
+          )}`,
           icon: 'whatsapp'
         },
-        { label: '📋 Submit Technical Brief', type: 'link', href: '/contact', icon: 'calendar' }
-      ]
+        { label: lang === 'hi' ? '📋 Technical Brief Submit Karein' : '📋 Submit Technical Brief', type: 'link', href: '/contact', icon: 'calendar' }
+      ],
+      lang
     };
   }
 
-  // 16. THANKS / APPRECIATION
+  // 17. THANKS / APPRECIATION
   if (/^(thank|thanks|dhanyawad|shukriya|great|awesome|badhiya|ok|okay|theek\s*hai|thik\s*hai)/i.test(norm)) {
     return {
-      text: `You're very welcome! 😊 Agar aapko event planning ya kisi bhi service ke baare mein aur kuch poochna ho, toh main yahin hoon.\n\nAap chahein toh directly hamari team se WhatsApp par jud sakte hain:`,
-      actions: [
-        {
-          label: '💬 Chat on WhatsApp',
-          type: 'whatsapp',
-          href: `https://wa.me/${site.whatsapp}`,
-          icon: 'whatsapp'
-        },
-        { label: 'Plan Your Event Form', type: 'link', href: '/contact', icon: 'calendar' }
-      ],
-      suggestions: [
-        'What services do you provide?',
-        'How early should I book?',
-        'Office Address'
-      ]
+      text: lang === 'hi'
+        ? `Aapka bahut-bahut swagat hai! 😊\n\nAgar Creativatorss ki kisi bhi service ya event planning ke baare mein aur kuch poochna ho, toh main yahin hoon.\n\nDirect contact ke liye hamare numbers:\n📞 **Phone**: [${site.phone}](tel:${site.phone.replace(/[^0-9+]/g, '')}) / [${site.alternatePhone}](tel:${site.alternatePhone.replace(/[^0-9+]/g, '')})\n💬 **WhatsApp**: [+91 8626000002](https://wa.me/${site.whatsapp})`
+        : `You are very welcome! 😊\n\nIf you have any further questions about Creativatorss event services or planning, feel free to ask anytime.\n\nDirect contact numbers:\n📞 **Phone**: [${site.phone}](tel:${site.phone.replace(/[^0-9+]/g, '')}) / [${site.alternatePhone}](tel:${site.alternatePhone.replace(/[^0-9+]/g, '')})\n💬 **WhatsApp**: [+91 8626000002](https://wa.me/${site.whatsapp})`,
+      actions: getContactActions(lang),
+      lang
     };
   }
 
   // =========================================================================
-  // 17. FALLBACK - EXACTLY AS THE USER REQUESTED:
-  // "AGAR NHI DA PAYA TO WO CONTACT KARNA KO BOOLA GA CHATBOT USER KO THIK HA"
+  // 18. STRICT REFUSAL FOR OUTSIDE / NON-WEBSITE QUERIES:
+  // "mera chatbot bss jo meri website hai uski jankari dega bss agar user bhar ki
+  // zankari pucha saf mana kardega thik ha orr vha par ya likh ka da da ki ya contact number ha"
   // =========================================================================
+  if (lang === 'hi') {
+    return {
+      text: `Kshama kijiye, main sirf **Creativatorss Event & Production** aur hamari website se judi event services ki jaankari dene ke liye banaya gaya hoon. Main bahar ki ya anya vishayon ki jaankari nahi de sakta.\n\nAgar aapko kisi bhi event, booking ya hamari services se judi koi jaankari chahiye, toh aap hamare official contact numbers par direct sampark kar sakte hain:\n\n` +
+        `📞 **Phone Number**: [${site.phone}](tel:${site.phone.replace(/[^0-9+]/g, '')})\n` +
+        `📞 **Alternate Number**: [${site.alternatePhone}](tel:${site.alternatePhone.replace(/[^0-9+]/g, '')})\n` +
+        `💬 **WhatsApp**: [+91 8626000002](https://wa.me/${site.whatsapp})\n` +
+        `✉️ **Email**: [${site.email}](mailto:${site.email})\n\n` +
+        `Aap niche diye gaye button par click karke turant WhatsApp par baat kar sakte hain ya call laga sakte hain:`,
+      actions: getContactActions('hi'),
+      suggestions: [
+        'Aap kya kya services dete hain?',
+        'Wedding planning ki jankari',
+        'Corporate events aur conferences',
+        'Aapka office kahan par hai?'
+      ],
+      lang: 'hi'
+    };
+  }
+
   return {
-    text: `Maaf kijiye, mujhe is baare me poori jaankari nahi hai. Par hamari expert event team aapki turant aur personally madad karne ke liye ready hai! ✨\n\n` +
-      `Aap direct humse WhatsApp par baat kar sakte hain, call laga sakte hain, ya apna enquiry form submit kar sakte hain:`,
-    actions: FALLBACK_ACTIONS,
+    text: `I apologize, but I am specifically designed to provide assistance **only for Creativatorss Event & Production** and website-related services. I cannot answer queries outside our event management domain.\n\nIf you need any information regarding events, wedding planning, corporate productions, or bookings, please contact our team directly at our official numbers:\n\n` +
+      `📞 **Primary Phone**: [${site.phone}](tel:${site.phone.replace(/[^0-9+]/g, '')})\n` +
+      `📞 **Alternate Phone**: [${site.alternatePhone}](tel:${site.alternatePhone.replace(/[^0-9+]/g, '')})\n` +
+      `💬 **WhatsApp**: [+91 8626000002](https://wa.me/${site.whatsapp})\n` +
+      `✉️ **Email**: [${site.email}](mailto:${site.email})\n\n` +
+      `Feel free to reach out via WhatsApp or call us directly:`,
+    actions: getContactActions('en'),
     suggestions: [
-      'What services do you offer?',
-      'Wedding Planning Details',
-      'Corporate Events',
+      'What services do you provide?',
+      'Tell me about wedding planning',
+      'Corporate events and conferences',
       'Where is your office located?'
-    ]
+    ],
+    lang: 'en'
   };
 }
-
