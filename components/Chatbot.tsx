@@ -11,7 +11,11 @@ import {
   Sparkles,
   ExternalLink,
   ChevronDown,
-  Bot
+  Bot,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import {
   getChatbotResponse,
@@ -28,6 +32,19 @@ interface ChatMessage {
   timestamp: string;
   actions?: ActionButton[];
   suggestions?: string[];
+  lang?: 'hi' | 'en';
+}
+
+// Clean markdown for text-to-speech
+function cleanTextForSpeech(text: string): string {
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/[•\-\*]/g, ' ')
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/[\u{1F300}-\u{1F9FF}]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 export function Chatbot() {
@@ -38,8 +55,16 @@ export function Chatbot() {
   const [isTyping, setIsTyping] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
+  // Voice States
+  const [isListening, setIsListening] = useState(false);
+  const [voiceFeedback, setVoiceFeedback] = useState('');
+  const [voiceLang, setVoiceLang] = useState<'hi-IN' | 'en-IN'>('hi-IN');
+  const [isVoiceOutputEnabled, setIsVoiceOutputEnabled] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState<string | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   // Initialize welcome message
   useEffect(() => {
@@ -47,7 +72,7 @@ export function Chatbot() {
     const initialGreeting: ChatMessage = {
       id: 'msg-welcome',
       sender: 'bot',
-      text: `Hello! 👋 Welcome to **Creativatorss Event & Production**!\n\nI am your dedicated virtual assistant. I can help you with all questions regarding our website and services — including **Luxury Weddings, Corporate Events, Fashion Shows, Brand Shoots, Artist & Celebrity Management, Pricing & Office Locations** (I support both English & Hindi).\n\nHow can I help you with your event today?`,
+      text: `Hello! 👋 Welcome to **Creativatorss Event & Production**!\n\nI am your dedicated virtual assistant. I can help you with all questions regarding our website and services — including **Luxury Weddings, Corporate Events, Fashion Shows, Brand Shoots, Artist & Celebrity Management, Pricing & Office Locations** (I support both English & Hindi).\n\nHow can I help you with your event today? You can type below or tap the 🎙️ **Mic icon** to speak directly!`,
       timestamp: timeStr,
       suggestions: [
         '✨ What services do you offer?',
@@ -96,8 +121,149 @@ export function Chatbot() {
       setTimeout(() => {
         inputRef.current?.focus();
       }, 200);
+    } else {
+      stopListening();
+      stopSpeaking();
     }
   }, [isOpen]);
+
+  // Cleanup speech synthesis on unmount
+  useEffect(() => {
+    return () => {
+      stopListening();
+      stopSpeaking();
+    };
+  }, []);
+
+  // Text-To-Speech function
+  const speakText = (text: string, lang: 'hi' | 'en' = 'en', messageId?: string) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
+    window.speechSynthesis.cancel();
+    if (isSpeaking === messageId) {
+      setIsSpeaking(null);
+      return;
+    }
+
+    const clean = cleanTextForSpeech(text);
+    if (!clean) return;
+
+    const utterance = new SpeechSynthesisUtterance(clean);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
+
+    // Pick best available voice
+    const voices = window.speechSynthesis.getVoices();
+    const voice = voices.find(v => v.lang.startsWith(lang === 'hi' ? 'hi' : 'en'));
+    if (voice) utterance.voice = voice;
+
+    utterance.onstart = () => {
+      if (messageId) setIsSpeaking(messageId);
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(null);
+    };
+
+    utterance.onerror = () => {
+      setIsSpeaking(null);
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const stopSpeaking = () => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(null);
+  };
+
+  // Speech Recognition (Voice Input) functions
+  const startListening = () => {
+    stopSpeaking();
+
+    const SpeechRecognition = typeof window !== 'undefined'
+      ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
+      : null;
+
+    if (!SpeechRecognition) {
+      alert('Voice input is not supported by your browser. Please use Google Chrome, Edge, or Safari.');
+      return;
+    }
+
+    try {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.abort(); } catch {}
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = voiceLang;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+      recognition.continuous = false;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        setVoiceFeedback(voiceLang === 'hi-IN' ? 'Sun raha hoon... Boliye ✨' : 'Listening... Speak now ✨');
+      };
+
+      recognition.onresult = (event: any) => {
+        const current = event.resultIndex;
+        const transcript = event.results[current][0].transcript;
+        setInputText(transcript);
+
+        if (event.results[current].isFinal) {
+          setVoiceFeedback('Processing your question...');
+          setTimeout(() => {
+            handleSendMessage(transcript);
+            stopListening();
+          }, 450);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn('Speech recognition error:', event.error);
+        setIsListening(false);
+        if (event.error === 'not-allowed') {
+          setVoiceFeedback('Microphone permission blocked. Please allow mic in browser settings.');
+          setTimeout(() => setVoiceFeedback(''), 4000);
+        } else {
+          setVoiceFeedback('');
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.error('Speech recognition start error:', err);
+      setIsListening(false);
+      setVoiceFeedback('');
+    }
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+    }
+    setIsListening(false);
+    setVoiceFeedback('');
+  };
+
+  const toggleListening = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
 
   const handleSendMessage = (textToSend?: string) => {
     const text = (textToSend || inputText).trim();
@@ -118,16 +284,23 @@ export function Chatbot() {
     // Realistic typing delay
     setTimeout(() => {
       const botResponse: ChatResponse = getChatbotResponse(text);
+      const newBotMsgId = `bot-${Date.now()}`;
       const botMsg: ChatMessage = {
-        id: `bot-${Date.now()}`,
+        id: newBotMsgId,
         sender: 'bot',
         text: botResponse.text,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         actions: botResponse.actions,
-        suggestions: botResponse.suggestions
+        suggestions: botResponse.suggestions,
+        lang: botResponse.lang
       };
       setMessages(prev => [...prev, botMsg]);
       setIsTyping(false);
+
+      // If voice output is enabled, read the answer aloud!
+      if (isVoiceOutputEnabled) {
+        speakText(botResponse.text, botResponse.lang, newBotMsgId);
+      }
     }, 450);
   };
 
@@ -139,12 +312,14 @@ export function Chatbot() {
   };
 
   const resetChat = () => {
+    stopSpeaking();
+    stopListening();
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     setMessages([
       {
         id: `reset-${Date.now()}`,
         sender: 'bot',
-        text: `Chat has been reset. How can I help you with your event today?`,
+        text: `Chat has been reset. How can I help you with your event today? You can type or use the mic to speak!`,
         timestamp: timeStr,
         suggestions: INITIAL_SUGGESTIONS.map(s => s.query)
       }
@@ -159,10 +334,8 @@ export function Chatbot() {
         return <div key={lineIdx} className="chatbot-empty-line" />;
       }
 
-      // Check if bullet point
       const isBullet = line.trim().startsWith('•') || line.trim().startsWith('-') || /^\d+\./.test(line.trim());
 
-      // Parse bold **text** and links [text](url)
       const parts: React.ReactNode[] = [];
       const regex = /(\*\*.*?\*\*|\[.*?\]\(.*?\))/g;
       let lastIndex = 0;
@@ -271,12 +444,27 @@ export function Chatbot() {
                   Creativatorss Assistant <Sparkles size={13} className="chatbot-gold-icon" />
                 </div>
                 <div className="chatbot-subtitle">
-                  <span className="chatbot-live-dot" /> Online • Hindi & English Support
+                  <span className="chatbot-live-dot" /> Online • Voice & Text Enabled
                 </div>
               </div>
             </div>
 
             <div className="chatbot-header-actions">
+              {/* Text-To-Speech Readout Toggle */}
+              <button
+                type="button"
+                className={`chatbot-action-icon-btn ${isVoiceOutputEnabled ? 'is-voice-active' : ''}`}
+                onClick={() => {
+                  if (isVoiceOutputEnabled) stopSpeaking();
+                  setIsVoiceOutputEnabled(!isVoiceOutputEnabled);
+                }}
+                title={isVoiceOutputEnabled ? 'Voice output ON (Click to mute)' : 'Voice output OFF (Click to hear answers)'}
+                aria-label={isVoiceOutputEnabled ? 'Voice output ON' : 'Voice output OFF'}
+              >
+                {isVoiceOutputEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+              </button>
+
+              {/* Reset Chat */}
               <button
                 type="button"
                 className="chatbot-action-icon-btn"
@@ -286,6 +474,8 @@ export function Chatbot() {
               >
                 <RotateCcw size={15} />
               </button>
+
+              {/* Close */}
               <button
                 type="button"
                 className="chatbot-action-icon-btn"
@@ -363,7 +553,23 @@ export function Chatbot() {
                     )}
                   </div>
 
-                  <span className="chatbot-timestamp">{msg.timestamp}</span>
+                  <div className="chatbot-msg-footer">
+                    <span className="chatbot-timestamp">{msg.timestamp}</span>
+
+                    {/* Speaker Readout Button on Bot Messages */}
+                    {msg.sender === 'bot' && (
+                      <button
+                        type="button"
+                        className={`chatbot-speak-bubble-btn ${isSpeaking === msg.id ? 'is-speaking' : ''}`}
+                        onClick={() => speakText(msg.text, msg.lang, msg.id)}
+                        title={isSpeaking === msg.id ? 'Stop listening' : 'Listen to this answer'}
+                        aria-label="Listen to answer"
+                      >
+                        <Volume2 size={11} />
+                        {isSpeaking === msg.id && <span className="chatbot-sound-indicator">Speaking...</span>}
+                      </button>
+                    )}
+                  </div>
 
                   {/* Suggestion Chips */}
                   {msg.suggestions && msg.suggestions.length > 0 && (
@@ -405,7 +611,7 @@ export function Chatbot() {
 
           {/* Quick FAQ / Topics Pills at Bottom */}
           <div className="chatbot-quick-bar">
-            <span className="chatbot-quick-label">Popular:</span>
+            <span className="chatbot-quick-label">Topics:</span>
             <button
               type="button"
               className="chatbot-quick-pill"
@@ -457,6 +663,48 @@ export function Chatbot() {
             </button>
           </div>
 
+          {/* Voice Listening Feedback Banner */}
+          {(isListening || voiceFeedback) && (
+            <div className="chatbot-voice-banner">
+              <div className="chatbot-voice-pulse-ring" />
+              <div className="chatbot-voice-wave">
+                <span />
+                <span />
+                <span />
+                <span />
+              </div>
+              <span className="chatbot-voice-text">{voiceFeedback || 'Listening... Speak in Hindi or English'}</span>
+              
+              <div className="chatbot-voice-lang-toggle">
+                <button
+                  type="button"
+                  className={voiceLang === 'hi-IN' ? 'is-active' : ''}
+                  onClick={() => setVoiceLang('hi-IN')}
+                  title="Hindi & Hinglish voice recognition"
+                >
+                  Hindi
+                </button>
+                <button
+                  type="button"
+                  className={voiceLang === 'en-IN' ? 'is-active' : ''}
+                  onClick={() => setVoiceLang('en-IN')}
+                  title="English voice recognition"
+                >
+                  English
+                </button>
+              </div>
+
+              <button
+                type="button"
+                className="chatbot-voice-close"
+                onClick={stopListening}
+                aria-label="Stop listening"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          )}
+
           {/* Input Footer */}
           <div className="chatbot-footer">
             <div className="chatbot-input-wrap">
@@ -466,10 +714,12 @@ export function Chatbot() {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Poochiye (Hindi / English) - wedding, cost, booking..."
+                placeholder={isListening ? '🎙️ Listening... Bolna shuru kijiye...' : 'Poochiye ya mic daba kar boliye...'}
                 className="chatbot-input"
                 maxLength={400}
               />
+
+              {/* Direct WhatsApp shortcut */}
               <a
                 href={`https://wa.me/${site.whatsapp}?text=${encodeURIComponent('Hi Creativatorss, I have an event inquiry.')}`}
                 target="_blank"
@@ -480,6 +730,19 @@ export function Chatbot() {
               >
                 💬
               </a>
+
+              {/* Microphone Voice Button */}
+              <button
+                type="button"
+                onClick={toggleListening}
+                className={`chatbot-mic-btn ${isListening ? 'is-listening' : ''}`}
+                title={isListening ? 'Stop listening (Tap to cancel)' : 'Speak to AI Assistant (Voice Input)'}
+                aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+              >
+                {isListening ? <MicOff size={15} /> : <Mic size={15} />}
+              </button>
+
+              {/* Send Button */}
               <button
                 type="button"
                 onClick={() => handleSendMessage()}
@@ -491,7 +754,7 @@ export function Chatbot() {
               </button>
             </div>
             <div className="chatbot-footer-brand">
-              <span>Creativatorss Event & Production · Chandigarh & Pan-India</span>
+              <span>Creativatorss Event & Production · Voice & Text Assistant</span>
             </div>
           </div>
         </div>
@@ -499,4 +762,3 @@ export function Chatbot() {
     </div>
   );
 }
-
