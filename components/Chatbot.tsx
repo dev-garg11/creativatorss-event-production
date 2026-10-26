@@ -20,6 +20,8 @@ import {
 import {
   getChatbotResponse,
   INITIAL_SUGGESTIONS,
+  INITIAL_SUGGESTIONS_EN,
+  INITIAL_SUGGESTIONS_HI,
   ChatResponse,
   ActionButton
 } from '../data/chatbotKnowledge';
@@ -55,9 +57,12 @@ export function Chatbot() {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // Active Chat Language mode ('hi' | 'en')
+  const [chatLang, setChatLang] = useState<'hi' | 'en'>('hi');
 
   // Voice States
   const [isListening, setIsListening] = useState(false);
+  const [isVoiceStarting, setIsVoiceStarting] = useState(false);
   const [voiceFeedback, setVoiceFeedback] = useState('');
   const [voiceLang, setVoiceLang] = useState<'hi-IN' | 'en-IN'>('hi-IN');
   const [isVoiceOutputEnabled, setIsVoiceOutputEnabled] = useState(false);
@@ -66,6 +71,14 @@ export function Chatbot() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
+  const voiceStartIdRef = useRef(0);
+
+  const showVoiceFeedback = (message: string, duration = 5000) => {
+    setVoiceFeedback(message);
+    if (duration > 0) {
+      window.setTimeout(() => setVoiceFeedback(''), duration);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -77,14 +90,15 @@ export function Chatbot() {
     const initialGreeting: ChatMessage = {
       id: 'msg-welcome',
       sender: 'bot',
-      text: `Hello! 👋 Welcome to **Creativatorss Event & Production**!\n\nI am your dedicated virtual assistant. I can help you with all questions regarding our website and services — including **Luxury Weddings, Corporate Events, Fashion Shows, Brand Shoots, Artist & Celebrity Management, Pricing & Office Locations** (I support both English & Hindi).\n\nHow can I help you with your event today? You can type below or tap the 🎙️ **Mic icon** to speak directly!`,
+      text: `Namaste & Welcome! 👋 **Creativatorss Event & Production** mein aapka swagat hai!\n\nMain aapka personal event assistant hoon — **main Hindi aur English dono samajhta hoon aur baat kar sakta hoon**.\n\nAap Creativatorss ki kisi bhi service (**Weddings, Corporate Events, Fashion Shows, Brand Shoots, Artist & Celebrity Management, Pricing & Office Locations**) ke baare mein pooch sakte hain.\n\nAap niche type kar sakte hain ya 🎙️ **Mic icon** daba kar direct bol sakte hain!`,
       timestamp: timeStr,
       suggestions: [
-        '✨ What services do you offer?',
+        '✨ Hamari Services kya hain?',
         '💍 Wedding Planning details',
         '🏢 Corporate Events & Conferences',
-        '💰 How to get a custom quote?',
-        '📍 Where is your office located?'
+        '💰 Event ka kitna kharcha hota hai?',
+        '📍 Office kahan par hai?',
+        '🇬🇧 Chat in English'
       ],
       actions: [
         {
@@ -99,7 +113,8 @@ export function Chatbot() {
           href: '/services',
           icon: 'external'
         }
-      ]
+      ],
+      lang: 'hi'
     };
     setMessages([initialGreeting]);
 
@@ -186,7 +201,7 @@ export function Chatbot() {
   };
 
   // Speech Recognition (Voice Input) functions
-  const startListening = () => {
+  const startListening = async () => {
     stopSpeaking();
 
     const SpeechRecognition = typeof window !== 'undefined'
@@ -194,16 +209,39 @@ export function Chatbot() {
       : null;
 
     if (!SpeechRecognition) {
-      setVoiceFeedback('Voice input is best supported on Google Chrome, Edge, and Safari.');
-      setTimeout(() => setVoiceFeedback(''), 5000);
-      alert('Voice input is not supported by your current browser. Please use Google Chrome, Microsoft Edge, or Safari.');
+      showVoiceFeedback('Voice input ke liye Chrome, Edge ya Safari use kijiye.');
       return;
     }
 
+    if (typeof window !== 'undefined' && !window.isSecureContext && window.location.hostname !== 'localhost') {
+      showVoiceFeedback('Mic ke liye website HTTPS ya localhost par kholni hogi.');
+      return;
+    }
+
+    setIsVoiceStarting(true);
+    setVoiceFeedback('Mic permission check ho rahi hai...');
+    const voiceStartId = ++voiceStartIdRef.current;
+
     try {
       if (recognitionRef.current) {
-        try { recognitionRef.current.abort(); } catch {}
+        try { recognitionRef.current.abort(); } catch { /* already stopped */ }
+        recognitionRef.current = null;
       }
+
+      // SpeechRecognition's permission prompt is inconsistent across browsers.
+      // Ask for the microphone explicitly so blocked devices get a clear error.
+      if (navigator.mediaDevices?.getUserMedia) {
+        const permissionStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+        permissionStream.getTracks().forEach(track => track.stop());
+      }
+
+      if (voiceStartIdRef.current !== voiceStartId) return;
 
       const recognition = new SpeechRecognition();
       recognition.lang = voiceLang;
@@ -213,6 +251,7 @@ export function Chatbot() {
 
       recognition.onstart = () => {
         setIsListening(true);
+        setIsVoiceStarting(false);
         setVoiceFeedback(voiceLang === 'hi-IN' ? '🎙️ Sun raha hoon... Boliye ✨' : '🎙️ Listening... Speak now ✨');
       };
 
@@ -241,44 +280,64 @@ export function Chatbot() {
       };
 
       recognition.onerror = (event: any) => {
+        if (event.error === 'aborted' && recognitionRef.current !== recognition) return;
         console.warn('Speech recognition error:', event.error);
         setIsListening(false);
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          setVoiceFeedback('⚠️ Mic blocked. Click the lock/mic icon in URL bar to Allow.');
-          setTimeout(() => setVoiceFeedback(''), 5000);
+        setIsVoiceStarting(false);
+        if (event.error === 'audio-capture') {
+          showVoiceFeedback('Mic detect nahi hua. Windows/browser me microphone enabled hai?');
+        } else if (event.error === 'network') {
+          showVoiceFeedback('Voice service connect nahi ho paayi. Internet check karke dobara try karein.');
+        } else if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          showVoiceFeedback('⚠️ Mic blocked hai. URL bar ke lock/mic icon par click karke Allow karein.');
         } else if (event.error === 'no-speech') {
-          setVoiceFeedback('Aawaz nahi suni. Please mic ke paas bolein.');
-          setTimeout(() => setVoiceFeedback(''), 3000);
+          showVoiceFeedback('Aawaz nahi suni. Please mic ke paas bolkar dobara try karein.', 3000);
         } else {
           setVoiceFeedback('');
         }
       };
 
       recognition.onend = () => {
+        if (recognitionRef.current !== recognition) return;
         setIsListening(false);
+        setIsVoiceStarting(false);
+        if (recognitionRef.current === recognition) {
+          recognitionRef.current = null;
+        }
       };
 
       recognitionRef.current = recognition;
       recognition.start();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Speech recognition start error:', err);
       setIsListening(false);
-      setVoiceFeedback('');
+      setIsVoiceStarting(false);
+      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+        showVoiceFeedback('⚠️ Mic permission denied hai. URL bar ke lock/mic icon se Allow karke page reload karein.');
+      } else if (err?.name === 'NotFoundError') {
+        showVoiceFeedback('Mic nahi mila. Windows me microphone connect karke dobara try karein.');
+      } else if (err?.name === 'NotReadableError') {
+        showVoiceFeedback('Mic kisi aur app me use ho raha hai. Use band karke dobara try karein.');
+      } else {
+        showVoiceFeedback('Mic start nahi ho paaya. HTTPS/localhost par kholkar dobara try karein.');
+      }
     }
   };
 
   const stopListening = () => {
+    voiceStartIdRef.current += 1;
     if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {}
+      const recognition = recognitionRef.current;
+      recognitionRef.current = null;
+      try { recognition.abort(); } catch { /* already stopped */ }
     }
     setIsListening(false);
-    setTimeout(() => setVoiceFeedback(''), 1000);
+    setIsVoiceStarting(false);
+    window.setTimeout(() => setVoiceFeedback(''), 1000);
   };
 
   const toggleListening = () => {
-    if (isListening) {
+    if (isListening || isVoiceStarting) {
       if (inputText.trim()) {
         handleSendMessage(inputText.trim());
       }
@@ -288,9 +347,40 @@ export function Chatbot() {
     }
   };
 
+  const toggleLanguage = () => {
+    const nextLang = chatLang === 'hi' ? 'en' : 'hi';
+    setChatLang(nextLang);
+    setVoiceLang(nextLang === 'hi' ? 'hi-IN' : 'en-IN');
+
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const switchMsg: ChatMessage = {
+      id: `lang-switch-${Date.now()}`,
+      sender: 'bot',
+      text: nextLang === 'hi'
+        ? `🙏 **Namaste! Main ab aapse Hindi aur Hinglish mein baat karunga.**\n\nAap Creativatorss ki kisi bhi service ya event ke baare mein pooch sakte hain:\n• 💍 **Wedding Planning**\n• 🏢 **Corporate Events & Conferences**\n• 🌟 **Celebrity & Artist Booking**\n• 💰 **Event ka Kharcha aur Custom Quote**\n• 📍 **Office Address & Cities Coverage**\n\nAap kya jaanna chahte hain?`
+        : `✨ **Switched to English!**\n\nHow can I help you with Creativatorss event production services today? Feel free to ask about weddings, corporate summits, artist management, or pricing.`,
+      timestamp: timeStr,
+      suggestions: (nextLang === 'hi' ? INITIAL_SUGGESTIONS_HI : INITIAL_SUGGESTIONS_EN).map(s => s.query),
+      lang: nextLang
+    };
+    setMessages(prev => [...prev, switchMsg]);
+  };
+
   const handleSendMessage = (textToSend?: string) => {
     const text = (textToSend || inputText).trim();
     if (!text) return;
+
+    // Direct language switcher chip triggers
+    let activeLang = chatLang;
+    if (text === '🇮🇳 हिंदी में बात करें' || text.toLowerCase() === 'hindi me baat karo') {
+      activeLang = 'hi';
+      setChatLang('hi');
+      setVoiceLang('hi-IN');
+    } else if (text === '🇬🇧 Chat in English' || text.toLowerCase() === 'speak in english') {
+      activeLang = 'en';
+      setChatLang('en');
+      setVoiceLang('en-IN');
+    }
 
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const userMsg: ChatMessage = {
@@ -306,7 +396,14 @@ export function Chatbot() {
 
     // Realistic typing delay
     setTimeout(() => {
-      const botResponse: ChatResponse = getChatbotResponse(text);
+      const botResponse: ChatResponse = getChatbotResponse(text, activeLang);
+
+      // Auto sync active session language if user spoke/typed in Hindi or English
+      if (botResponse.lang && botResponse.lang !== activeLang) {
+        setChatLang(botResponse.lang);
+        setVoiceLang(botResponse.lang === 'hi' ? 'hi-IN' : 'en-IN');
+      }
+
       const newBotMsgId = `bot-${Date.now()}`;
       const botMsg: ChatMessage = {
         id: newBotMsgId,
@@ -342,9 +439,12 @@ export function Chatbot() {
       {
         id: `reset-${Date.now()}`,
         sender: 'bot',
-        text: `Chat has been reset. How can I help you with your event today? You can type or use the mic to speak!`,
+        text: chatLang === 'hi'
+          ? `Chat reset ho gayi hai. 🙏 Aap Creativatorss ke kisi bhi event ya service ke baare mein pooch sakte hain. Boliye ya type kijiye!`
+          : `Chat has been reset. How can I help you with your event today? You can type or use the mic to speak!`,
         timestamp: timeStr,
-        suggestions: INITIAL_SUGGESTIONS.map(s => s.query)
+        suggestions: (chatLang === 'hi' ? INITIAL_SUGGESTIONS_HI : INITIAL_SUGGESTIONS_EN).map(s => s.query),
+        lang: chatLang
       }
     ]);
   };
@@ -475,6 +575,17 @@ export function Chatbot() {
             </div>
 
             <div className="chatbot-header-actions">
+              {/* Language Switch Button */}
+              <button
+                type="button"
+                className="chatbot-lang-toggle-btn"
+                onClick={toggleLanguage}
+                title={chatLang === 'hi' ? 'Switch to English' : 'हिंदी / Hinglish में बात करें'}
+                aria-label="Toggle language between Hindi and English"
+              >
+                {chatLang === 'hi' ? '🇮🇳 हिंदी' : '🇬🇧 EN'}
+              </button>
+
               {/* Text-To-Speech Readout Toggle */}
               <button
                 type="button"
@@ -636,55 +747,55 @@ export function Chatbot() {
 
           {/* Quick FAQ / Topics Pills at Bottom */}
           <div className="chatbot-quick-bar">
-            <span className="chatbot-quick-label">Topics:</span>
+            <span className="chatbot-quick-label">{chatLang === 'hi' ? 'Topic:' : 'Topics:'}</span>
             <button
               type="button"
               className="chatbot-quick-pill"
-              onClick={() => handleSendMessage('What services do you provide?')}
+              onClick={() => handleSendMessage(chatLang === 'hi' ? 'Aap kya kya services dete hain?' : 'What services do you provide?')}
             >
-              Services
+              {chatLang === 'hi' ? '✨ Services' : '✨ Services'}
             </button>
             <button
               type="button"
               className="chatbot-quick-pill"
-              onClick={() => handleSendMessage('Wedding Planning details')}
+              onClick={() => handleSendMessage(chatLang === 'hi' ? 'Wedding planning ki jankari chahiye' : 'Wedding Planning details')}
             >
-              Wedding
+              {chatLang === 'hi' ? '💍 Wedding' : '💍 Wedding'}
             </button>
             <button
               type="button"
               className="chatbot-quick-pill"
-              onClick={() => handleSendMessage('Corporate events and conferences')}
+              onClick={() => handleSendMessage(chatLang === 'hi' ? 'Corporate events aur conferences' : 'Corporate events and conferences')}
             >
-              Corporate
+              {chatLang === 'hi' ? '🏢 Corporate' : '🏢 Corporate'}
             </button>
             <button
               type="button"
               className="chatbot-quick-pill"
-              onClick={() => handleSendMessage('Celebrity and artist booking')}
+              onClick={() => handleSendMessage(chatLang === 'hi' ? 'Celebrity aur artist booking' : 'Celebrity and artist booking')}
             >
-              Artists
+              {chatLang === 'hi' ? '🌟 Artists' : '🌟 Artists'}
             </button>
             <button
               type="button"
               className="chatbot-quick-pill"
-              onClick={() => handleSendMessage('Where is your office located?')}
+              onClick={() => handleSendMessage(chatLang === 'hi' ? 'Event ka kitna kharcha hota hai?' : 'How much does an event cost?')}
             >
-              Address
+              {chatLang === 'hi' ? '💰 Kharcha' : '💰 Pricing'}
             </button>
             <button
               type="button"
               className="chatbot-quick-pill"
-              onClick={() => handleSendMessage('How much does an event cost?')}
+              onClick={() => handleSendMessage(chatLang === 'hi' ? 'Aapka office kahan par hai?' : 'Where is your office located?')}
             >
-              Pricing
+              {chatLang === 'hi' ? '📍 Office' : '📍 Address'}
             </button>
             <button
               type="button"
               className="chatbot-quick-pill"
-              onClick={() => handleSendMessage('Creativatorss team se kaise contact karein?')}
+              onClick={() => handleSendMessage(chatLang === 'hi' ? 'Creativatorss team se kaise contact karein?' : 'Creativatorss team se kaise contact karein?')}
             >
-              Contact
+              {chatLang === 'hi' ? '📞 Contact' : '📞 Contact'}
             </button>
           </div>
 
@@ -739,7 +850,11 @@ export function Chatbot() {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={isListening ? '🎙️ Listening... Bolna shuru kijiye...' : 'Poochiye ya mic daba kar boliye...'}
+                placeholder={
+                  isListening
+                    ? (chatLang === 'hi' ? '🎙️ Sun raha hoon... Boliye ✨' : '🎙️ Listening... Speak now ✨')
+                    : (chatLang === 'hi' ? 'Creativatorss ke baare me puchein ya mic dabayein...' : 'Ask about events or tap mic to speak...')
+                }
                 className="chatbot-input"
                 maxLength={400}
               />
@@ -760,11 +875,11 @@ export function Chatbot() {
               <button
                 type="button"
                 onClick={toggleListening}
-                className={`chatbot-mic-btn ${isListening ? 'is-listening' : ''}`}
-                title={isListening ? 'Stop listening (Tap to cancel)' : 'Speak to AI Assistant (Voice Input)'}
-                aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+                className={`chatbot-mic-btn ${isListening || isVoiceStarting ? 'is-listening' : ''}`}
+                title={isListening || isVoiceStarting ? 'Stop listening (Tap to cancel)' : 'Speak to AI Assistant (Voice Input)'}
+                aria-label={isListening || isVoiceStarting ? 'Stop voice input' : 'Start voice input'}
               >
-                {isListening ? <MicOff size={15} /> : <Mic size={15} />}
+                {isListening || isVoiceStarting ? <MicOff size={15} /> : <Mic size={15} />}
               </button>
 
               {/* Send Button */}

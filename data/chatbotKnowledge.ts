@@ -79,27 +79,30 @@ function normalize(str: string): string {
 }
 
 // Language detector: detects if query is Hindi / Hinglish or English
-export function detectLanguage(text: string): 'hi' | 'en' {
+export function detectLanguage(text: string, sessionLang?: 'hi' | 'en'): 'hi' | 'en' {
   // Check for Devanagari characters
   if (/[\u0900-\u097F]/.test(text)) {
     return 'hi';
   }
 
   const norm = normalize(text);
-  const words = norm.split(' ');
+  const words = norm.split(' ').filter(Boolean);
 
-  // Distinct Hindi / Hinglish markers (excluding words that overlap with English like 'do', 'me', 'or')
+  // Distinct Hindi / Hinglish markers
   const distinctHindiKeywords = [
     'kya', 'kaise', 'kese', 'kahan', 'kaha', 'kidhar', 'kaun', 'kon', 'kitna', 'kitne', 'kitni',
-    'chahiye', 'chahie', 'karwana', 'karwa', 'karna', 'karo', 'kare', 'karein',
-    'hai', 'hain', 'hoon', 'batao', 'bataiye', 'bataye',
+    'chahiye', 'chahie', 'karwana', 'karwa', 'karwani', 'karwane', 'karna', 'karni', 'karne',
+    'karo', 'kare', 'karein', 'kardo', 'karao',
+    'hai', 'hain', 'hoon', 'hu', 'ho', 'h', 'hn', 'tha', 'thi', 'the',
+    'batao', 'bataiye', 'bataye', 'btao', 'bata',
     'dega', 'degi', 'denge', 'shadi', 'shaadi', 'shadiyan', 'baare', 'bare',
-    'humko', 'hume', 'hum', 'meri', 'mera', 'mere', 'apka', 'aapka', 'aapki', 'aapke',
-    'baat', 'sampark', 'theek', 'thik', 'haan', 'han',
-    'nahi', 'nhi', 'mat', 'aur', 'vha', 'waha', 'yaha', 'yahan', 'pata', 'shahar',
-    'kab', 'kharcha', 'namaste', 'pranam', 'shukriya', 'dhanyawad', 'kripya', 'madad',
-    'bhai', 'bolo', 'boliye', 'jankari', 'jaankari', 'zankari', 'pucho',
-    'poochna', 'puchein', 'lagega', 'batao'
+    'humko', 'hume', 'hum', 'meri', 'mera', 'mere', 'apka', 'aapka', 'aapki', 'aapke', 'mujhe', 'mujhko',
+    'baat', 'sampark', 'theek', 'thik', 'haan', 'han', 'ha',
+    'nahi', 'nhi', 'mat', 'aur', 'orr', 'vha', 'waha', 'yaha', 'yahan', 'pata', 'shahar',
+    'kab', 'kharcha', 'kharch', 'paisa', 'paise', 'namaste', 'pranam', 'shukriya', 'dhanyawad', 'kripya', 'madad',
+    'bhai', 'bolo', 'boliye', 'bologe', 'jankari', 'jaankari', 'zankari', 'pucho',
+    'poochna', 'puchein', 'lagega', 'hoga', 'hogi', 'honge', 'aayega', 'aayegi', 'sakta', 'sakte', 'sakti',
+    'dekhna', 'dekho', 'dikhao', 'kuch', 'kuchh', 'achha', 'accha', 'badhiya', 'hindi', 'hinglish'
   ];
 
   let hindiScore = 0;
@@ -117,19 +120,40 @@ export function detectLanguage(text: string): 'hi' | 'en' {
     norm.includes('ke bare') ||
     norm.includes('kaise kare') ||
     norm.includes('kitna hai') ||
+    norm.includes('kitna kharcha') ||
     norm.includes('thik hai') ||
-    norm.includes('thik h')
+    norm.includes('thik h') ||
+    norm.includes('baat karo') ||
+    norm.includes('baat karein') ||
+    norm.includes('karni hai') ||
+    norm.includes('karna hai') ||
+    norm.includes('karwana hai') ||
+    norm.includes('karwani hai') ||
+    norm.includes('kaha h') ||
+    norm.includes('kahan h')
   ) {
     hindiScore += 2;
   }
 
-  return hindiScore > 0 ? 'hi' : 'en';
+  if (hindiScore > 0) {
+    return 'hi';
+  }
+
+  // If user was already talking in Hindi, keep Hindi unless they explicitly switch to English
+  if (sessionLang === 'hi') {
+    const isExplicitEnglish = /^(switch to english|speak in english|english please|talk in english|in english)/i.test(norm);
+    if (!isExplicitEnglish) {
+      return 'hi';
+    }
+  }
+
+  return 'en';
 }
 
 // Intent matchers
-export function getChatbotResponse(userMessage: string): ChatResponse {
+export function getChatbotResponse(userMessage: string, sessionLang?: 'hi' | 'en'): ChatResponse {
   const norm = normalize(userMessage);
-  const lang = detectLanguage(userMessage);
+  const lang = detectLanguage(userMessage, sessionLang);
 
   if (!norm) {
     return {
@@ -138,6 +162,68 @@ export function getChatbotResponse(userMessage: string): ChatResponse {
         : `Hello! I am the **Creativatorss Event & Production** assistant. You can ask me anything about our services, wedding planning, corporate events, or bookings.`,
       suggestions: (lang === 'hi' ? INITIAL_SUGGESTIONS_HI : INITIAL_SUGGESTIONS_EN).map(s => s.query),
       lang
+    };
+  }
+
+  // 0. EXPLICIT LANGUAGE SWITCH (Hindi / Hinglish vs English)
+  if (
+    /(hindi|hinglish)/i.test(norm) &&
+    (norm.includes('baat') ||
+      norm.includes('bolo') ||
+      norm.includes('speak') ||
+      norm.includes('talk') ||
+      norm.includes('bolte') ||
+      norm.includes('aati') ||
+      norm.includes('change') ||
+      norm.includes('switch') ||
+      norm.includes('please') ||
+      norm.length <= 15)
+  ) {
+    return {
+      text: `Haan ji, bilkul! Main **Hindi aur Hinglish** dono samajhta hoon aur aapse Hindi mein hi baat karunga. 🙏✨\n\nAap Creativatorss ki kisi bhi service ya event ke baare mein pooch sakte hain:\n• 💍 **Wedding Planning** (Theme, Decor, Royal Entry, Sangeet)\n• 🏢 **Corporate Events** (Conferences, Summits, LED Walls & AV)\n• 🌟 **Celebrity & Artist Booking** (Bollywood & Punjabi Singers, Live Bands)\n• 👠 **Fashion Shows & Model Management**\n• 📸 **Brand Shoots & Influencer Campaigns**\n• 💰 **Pricing & Customized Quotations**\n\nAapko kis event ki jaankari chahiye?`,
+      suggestions: [
+        'Aap kya kya services dete hain?',
+        'Wedding planning ki jankari',
+        'Corporate events aur conferences',
+        'Event ka kitna kharcha hota hai?',
+        'Aapka office kahan par hai?'
+      ],
+      actions: [
+        { label: 'Services Dekhein', type: 'link', href: '/services', icon: 'external' },
+        {
+          label: '💬 WhatsApp Par Baat Karein',
+          type: 'whatsapp',
+          href: `https://wa.me/${site.whatsapp}?text=${encodeURIComponent('Namaste Creativatorss, mujhe event planning ke baare me baat karni hai.')}`,
+          icon: 'whatsapp'
+        }
+      ],
+      lang: 'hi'
+    };
+  }
+
+  if (
+    /english/i.test(norm) &&
+    (norm.includes('speak') ||
+      norm.includes('talk') ||
+      norm.includes('switch') ||
+      norm.includes('change') ||
+      norm.includes('please') ||
+      norm.length <= 15)
+  ) {
+    return {
+      text: `Sure! I am happy to assist you in **English**. ✨\n\nI specialize strictly in Creativatorss Event & Production services:\n• 💍 **Luxury Wedding Planning**\n• 🏢 **Corporate Conferences & Galas**\n• 🌟 **Celebrity & Artist Management**\n• 👠 **Fashion Shows & Runway Production**\n• 📸 **Brand Shoots & Product Launches**\n• 💰 **Custom Quotations & Packages**\n\nHow can I help you plan your event today?`,
+      suggestions: [
+        'What services do you offer?',
+        'Wedding planning details',
+        'Corporate events and conferences',
+        'How much does an event cost?',
+        'Where is your office located?'
+      ],
+      actions: [
+        { label: 'View All Services', type: 'link', href: '/services', icon: 'external' },
+        { label: '💬 Chat on WhatsApp', type: 'whatsapp', href: `https://wa.me/${site.whatsapp}`, icon: 'whatsapp' }
+      ],
+      lang: 'en'
     };
   }
 
@@ -209,6 +295,10 @@ export function getChatbotResponse(userMessage: string): ChatResponse {
     norm.includes('whatsapp') ||
     norm.includes('call') ||
     norm.includes('baat karni') ||
+    norm.includes('baat karna') ||
+    norm.includes('baat kaise') ||
+    norm.includes('number do') ||
+    norm.includes('number chahiye') ||
     norm.includes('sampark') ||
     norm.includes('kaise contact') ||
     norm.includes('reach out') ||
@@ -279,6 +369,9 @@ export function getChatbotResponse(userMessage: string): ChatResponse {
     norm.includes('office') ||
     norm.includes('kahan hai') ||
     norm.includes('kaha hai') ||
+    norm.includes('kahan h') ||
+    norm.includes('kaha h') ||
+    norm.includes('kidhar') ||
     norm.includes('kahan pe') ||
     norm.includes('pata') ||
     norm.includes('sector 34') ||
@@ -543,7 +636,9 @@ export function getChatbotResponse(userMessage: string): ChatResponse {
     norm.includes('what do you do') ||
     norm.includes('offer') ||
     norm.includes('capabilities') ||
-    norm.includes('kaam')
+    norm.includes('kaam') ||
+    norm.includes('kya kya') ||
+    norm.includes('sab service')
   ) {
     return {
       text: lang === 'hi'
@@ -595,7 +690,12 @@ export function getChatbotResponse(userMessage: string): ChatResponse {
     norm.includes('charge') ||
     norm.includes('rate') ||
     norm.includes('budget') ||
-    norm.includes('kitna kharcha') ||
+    norm.includes('kharcha') ||
+    norm.includes('kharch') ||
+    norm.includes('paisa') ||
+    norm.includes('paise') ||
+    norm.includes('kitna lagega') ||
+    norm.includes('kitne paise') ||
     norm.includes('package') ||
     norm.includes('quote') ||
     norm.includes('quotation') ||
