@@ -48,6 +48,7 @@ function cleanTextForSpeech(text: string): string {
 }
 
 export function Chatbot() {
+  const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [hasOpenedBefore, setHasOpenedBefore] = useState(false);
   const [showWelcomeBubble, setShowWelcomeBubble] = useState(false);
@@ -65,6 +66,10 @@ export function Chatbot() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Initialize welcome message
   useEffect(() => {
@@ -381,6 +386,8 @@ export function Chatbot() {
       );
     });
   };
+
+  if (!mounted) return null;
 
   return (
     <div className="chatbot-root">
